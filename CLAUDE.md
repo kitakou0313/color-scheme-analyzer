@@ -20,7 +20,7 @@ iPadOS向けアプリ。画像を入力とし、その画像について以下�
 ## 開発方針
 - 仕様、アーキテクチャなどの管理ファイル
   - 以下のファイルを機能要件のマスターデータとして用いる
-    - ./docs/study-logger-blueprint.html
+    - ./docs/color-scheme-analyzer-blueprint.html
     - 記載すべき内容
       - 各画面の機能要件
       - データの実例
@@ -37,7 +37,7 @@ iPadOS向けアプリ。画像を入力とし、その画像について以下�
     - テストを通過するコードを実装
     - リファクタリングを実施
   - SwiftUIのViewは薄く保ち、ロジックはViewModel/Serviceに寄せてテスト可能にする
-  - UIKit非依存のロジックは可能な限り `Packages/StudyLoggerCore` に置き、Xcode本体なしでも `swift test` でTDDできるようにする。
+  - UIKit非依存のロジックは可能な限り `Packages/ColorSchemeCore` に置き、Xcode本体なしでも `swift test` でTDDできるようにする。
 - viewのテスト
   - TDDで進める
     - 失敗するテストを先に作成
@@ -67,3 +67,41 @@ iPadOS向けアプリ。画像を入力とし、その画像について以下�
 - 永続化はローカル(Documentsディレクトリ)上のSQLiteを利用する(Apple Personal Team(無料アカウント)がiCloud capabilityに対応していないため)。
 
 各制約の理由や実装の意思決定経緯、現在の実装状況は auto memory(`/memory`から参照可能)にある。
+
+## 設計決定ログ（要件ヒアリング）
+2026-09-07 のヒアリングで確定した事項。未決の項目は後続ラウンドで追記する。
+
+### 解析
+- 解析グリッド: 画像をダウンサンプリングし、セル単位で棒を立てる。長辺のセル数はユーザー選択（32 / 64 / 128）、既定値 64。短辺はアスペクト比を維持して決める。セル色はセル内ピクセルの平均色。
+- 色空間: HSB。Procreate のカラーパネル「Value」タブと同じ定義（H: 0–360°、赤で始まり赤で終わる / S: 0–100% / B: 0–100%）。変換は Core 側で抽象化し、将来の別色空間追加に備える。
+
+### 画像入力
+- v1 は PhotosPicker（写真ライブラリ）と Files（ドキュメントピッカー）。ドラッグ&ドロップは v2。カメラは非対応。
+
+### 3D 棒グラフ（彩度・明度）
+- 描画: RealityKit。全棒を 1 メッシュに結合し 1 エンティティで描く（SceneKit は iOS 26 で非推奨のため不採用）。
+- 棒の高さ = 値（彩度 or 明度）、棒の色 = 元ピクセル（セル平均）の色。
+- 床面に元画像をテクスチャとして貼るトグルを持つ。
+- 操作: 1本指ドラッグで回転、ピンチでズーム、リセットボタン、真上からの俯瞰プリセット。棒タップでの値表示は v2。
+
+### 色相画面
+- 元画像をそのまま表示し、選択は元画像のピクセル単位。
+- 指・Apple Pencil ともにタッチとして DragGesture で追従。Pencil ホバーは対象外。
+- 色相環: 色相角マーカー + 数値（H°, S%, B%）+ 選択色スウォッチ。S が 5% 未満はマーカーを消し「無彩色」と表示。
+
+### 永続化
+- 保存内容: 元画像のコピー（Documents/images/）+ 解析結果（HSB 配列を SQLite の BLOB）+ メタデータ（名前・日時・グリッドサイズ・サムネイル）。
+- SQLite アクセス層: GRDB.swift。
+- v1 は保存済み一覧と再オープンまで。データモデルは複数選択を前提に設計し、並列比較は v2。
+
+### 画面構成 / 対応環境
+- NavigationSplitView。サイドバー = 保存済み一覧、詳細 = 解析画面（セグメントで彩度 / 明度 / 色相を切替）。
+- 最小 iPadOS 26.0、iPad のみ（iPhone 非対応）、縦横両対応。
+- UI は日本語、コード識別子は英語。ローカライズは後回し。
+
+### プロジェクト構成 / テスト
+- XcodeGen の project.yml から .xcodeproj を生成し、.xcodeproj は git 管理外。
+- UIKit 非依存ロジックは `Packages/ColorSchemeCore`（ローカル SwiftPM）に置き `swift test` で回す。
+- E2E: XCUITest + XCTAttachment。`xcodebuild test -resultBundlePath` の結果から `xcresulttool` で `TestResults/<日時>/` に抽出し gitignore。
+- 3D はジオメトリ生成（棒の位置・高さ・色）を Core の単体テストで検証し、E2E は表示確認とスクショにとどめる。
+- 自動 E2E はシミュレータのみ。実機（Pencil）は手動確認。
