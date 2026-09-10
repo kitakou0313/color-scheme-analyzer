@@ -16,3 +16,4 @@ TestResults/
 
 # macOS
 .DS_Store
+App/Info.plist
