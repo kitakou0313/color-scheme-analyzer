@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>color-scheme-analyzer Blueprint</title>
+<style>
+  :root { --fg:#1d1d1f; --muted:#6e6e73; --line:#d2d2d7; --bg:#fff; --code:#f5f5f7; --accent:#0a5cff; }
+  body { margin:0; padding:2rem 1.25rem 4rem; color:var(--fg); background:var(--bg);
+         font:15px/1.7 -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; }
+  main { max-width: 980px; margin: 0 auto; }
+  h1 { font-size:1.7rem; margin:0 0 .25rem; }
+  h2 { font-size:1.25rem; margin:2.5rem 0 .75rem; padding-top:.5rem; border-top:1px solid var(--line); }
+  h3 { font-size:1.05rem; margin:1.75rem 0 .5rem; }
+  p, li { max-width: 78ch; }
+  .meta { color:var(--muted); font-size:.9rem; }
+  table { border-collapse:collapse; width:100%; margin:.75rem 0 1rem; font-size:.92rem; }
+  th, td { border:1px solid var(--line); padding:.4rem .6rem; vertical-align:top; text-align:left; }
+  th { background:var(--code); font-weight:600; white-space:nowrap; }
+  td.id { white-space:nowrap; font-family: ui-monospace, Menlo, monospace; font-size:.85rem; }
+  td.st { white-space:nowrap; }
+  code, pre { font-family: ui-monospace, Menlo, monospace; font-size:.88em; }
+  code { background:var(--code); padding:.1em .35em; border-radius:4px; }
+  pre { background:var(--code); padding:.9rem 1rem; border-radius:8px; overflow-x:auto; line-height:1.5; }
+  pre code { background:none; padding:0; }
+  .wrap { overflow-x:auto; }
+  .toc { columns: 2; column-gap: 2rem; font-size:.92rem; }
+  .toc a { color:var(--accent); text-decoration:none; }
+  .legend span { display:inline-block; margin-right:1rem; }
+  .pix { display:grid; grid-template-columns: repeat(4, 44px); gap:2px; margin:.5rem 0; }
+  .pix div { width:44px; height:44px; border:1px solid var(--line); box-sizing:border-box;
+             font-size:.68rem; display:flex; align-items:flex-end; justify-content:center; color:#000a; }
+  .cells { display:grid; grid-template-columns: repeat(2, 90px); gap:2px; margin:.5rem 0; }
+  .cells div { width:90px; height:90px; border:1px solid var(--line); box-sizing:border-box;
+               font-size:.75rem; display:flex; align-items:flex-end; justify-content:center; color:#000a; }
+  .note { border-left:3px solid var(--accent); padding:.4rem .9rem; background:var(--code); border-radius:0 8px 8px 0; }
+  .todo { color:#b45309; font-weight:600; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>color-scheme-analyzer Blueprint</h1>
+<p class="meta">機能要件のマスターデータ。最終更新: 2026-09-09。決定の経緯は <code>CLAUDE.md</code> の「設計決定ログ」を参照。</p>
+
+<h2 id="about">0. この文書について</h2>
+<ul>
+  <li>各要件には ID を付ける（<code>LIB-01</code> など）。テストコードはテスト名またはコメントで要件 ID を参照し、追跡できるようにする。</li>
+  <li>「検証」列の区分: <strong>unit</strong> = Core の <code>swift test</code>、<strong>e2e</strong> = シミュレータ上の XCUITest、<strong>manual</strong> = 実機での手動確認。</li>
+  <li>「状態」列の凡例: <span class="legend"><span>⬜ 未着手</span><span>🟨 実装中</span><span>✅ 検証済</span><span>⏸ v2</span></span></li>
+  <li>仕様の変更・進捗の更新があれば、この文書に必ず反映する。</li>
+</ul>
+
+<h3>目次</h3>
+<div class="toc">
+  <div><a href="#overview">1. 概要と用語</a></div>
+  <div><a href="#flow">2. 画面構成と遷移</a></div>
+  <div><a href="#lib">3.1 ライブラリ（サイドバー）</a></div>
+  <div><a href="#imp">3.2 取り込み</a></div>
+  <div><a href="#det">3.3 解析詳細（共通）</a></div>
+  <div><a href="#bar">3.4 彩度 / 明度 3D 棒グラフ</a></div>
+  <div><a href="#hue">3.5 色相</a></div>
+  <div><a href="#ana">4. 解析仕様</a></div>
+  <div><a href="#per">5. 永続化仕様</a></div>
+  <div><a href="#data">6. データ実例</a></div>
+  <div><a href="#nfr">7. 非機能要件・制約</a></div>
+  <div><a href="#test">8. 検証基盤</a></div>
+  <div><a href="#v2">9. v2 バックログ</a></div>
+  <div><a href="#progress">10. 進捗</a></div>
+</div>
+
+<h2 id="overview">1. 概要と用語</h2>
+<p>iPadOS 向けアプリ。1 枚の画像を取り込み、その色を <strong>彩度</strong>・<strong>明度</strong>・<strong>色相</strong> に分けて可視化し、結果を端末内に永続化して後から再度開けるようにする。</p>
+<table>
+  <tr><th>用語</th><th>定義</th></tr>
+  <tr><td>HSB</td><td>色相 H（0–360°、赤で始まり赤で終わる）、彩度 S（0–100%）、明度 B（0–100%）。Procreate のカラーパネル「Value」タブと同じ定義。sRGB 成分から計算する。</td></tr>
+  <tr><td>解析画像</td><td>取り込んだ画像に EXIF 回転・白合成・sRGB 変換・長辺 4096px 上限の縮小を適用したもの。解析と色相画面の表示・選択はすべてこの画像に対して行う。</td></tr>
+  <tr><td>グリッド / セル</td><td>解析画像を長辺 N セル（N = 32 / 64 / 128、既定 64）に分割したもの。棒グラフの棒 1 本がセル 1 個に対応する。</td></tr>
+  <tr><td>代表色</td><td>セルを 1 色で表した色。色相は最頻色相法で決め、S/B はセル内全ピクセルの平均。棒の色に使う。</td></tr>
+  <tr><td>解析（レコード）</td><td>1 回の取り込みで生成される保存単位。画像コピー・解析結果・メタデータからなる。</td></tr>
+  <tr><td>無彩色</td><td>S が 5% 未満の色。色相は未定義として扱う。</td></tr>
+</table>
+
+<h2 id="flow">2. 画面構成と遷移</h2>
+<ul>
+  <li><code>NavigationSplitView</code>。サイドバー = ライブラリ（保存済み解析の一覧）、詳細 = 解析詳細。</li>
+  <li>解析詳細はセグメントコントロールで「彩度 / 明度 / 色相」を切り替える。初期表示は「彩度」。</li>
+  <li>取り込みはサイドバーのツールバー「＋」から始まり、完了すると自動保存されて詳細が開く。</li>
+  <li>iPad のみ、縦横両対応、最小 iPadOS 26.0。UI は日本語。</li>
+</ul>
+<pre><code>ライブラリ（サイドバー） ──「＋」──▶ 取り込み元メニュー ──▶ ピッカー ──▶ 解像度シート ──▶ 進捗 ──▶ 自動保存
+      │                                                                                   │
+      └── 行をタップ ───────────────────────▶ 解析詳細 [彩度 | 明度 | 色相] ◀───────────────┘</code></pre>
+
+<h2 id="screens">3. 画面別 機能要件</h2>
+
+<h3 id="lib">3.1 ライブラリ（サイドバー）</h3>
+<div class="wrap"><table>
+  <tr><th>ID</th><th>要件</th><th>検証</th><th>状態</th></tr>
+  <tr><td class="id">LIB-01</td><td>保存済み解析を作成日時の降順で一覧表示する。行にはサムネイル、名前、作成日時、グリッドサイズ（例「64×48」）を表示する。</td><td>e2e</td><td class="st">⬜</td></tr>
+  <tr><td class="id">LIB-02</td><td>行をタップすると詳細にその解析を表示する。</td><td>e2e</td><td class="st">⬜</td></tr>
+  <tr><td class="id">LIB-03</td><td>行のスワイプで「削除」を出す。確認ダイアログで承認すると DB 行と画像ファイルの両方を削除し、一覧から消える。</td><td>e2e / unit（Persistence）</td><td class="st">⬜</td></tr>
+  <tr><td class="id">LIB-04</td><td>行のコンテキストメニュー「名前を変更」で名前を編集できる。空文字は拒否する。</td><td>e2e / unit</td><td class="st">⬜</td></tr>
+  <tr><td class="id">LIB-05</td><td>解析が 0 件のとき、一覧に「まだ解析がありません。＋から画像を取り込んでください」を表示する。</td><td>e2e</td><td class="st">⬜</td></tr>
+  <tr><td class="id">LIB-06</td><td>ツールバー「＋」を押すと「写真から / ファイルから」のメニューを表示する。</td><td>e2e</td><td class="st">⬜</td></tr>
+  <tr><td class="id">LIB-07</td><td>同じ画像を再度取り込んだ場合も別の解析として保存する（重複を許す）。</td><td>unit</td><td class="st">⬜</td></tr>
+  <tr><td class="id">LIB-08</td><td>検索・並び替えの切替は提供しない。</td><td>—</td><td class="st">⏸</td></tr>
+</table></div>
+
+<h3 id="imp">3.2 取り込み</h3>
+<div class="wrap"><table>
+  <tr><th>ID</th><th>要件</th><th>検証</th><th>状態</th></tr>
+  <tr><td class="id">IMP-01</td><td>「写真から」は <code>PhotosPicker</code>、「ファイルから」はドキュメントピッカーで画像 1 枚を選ぶ。対応形式は ImageIO がデコードできる静止画（JPEG / HEIC / PNG など）。</td><td>e2e（フィクスチャ経路） / manual</td><td class="st">⬜</td></tr>
+  <tr><td class="id">IMP-02</td><td>画像選択後に解像度シートを表示する。選択肢は 32 / 64 / 128、既定は前回選んだ値（初回は 64）。</td><td>e2e</td><td class="st">⬜</td></tr>
+  <tr><td class="id">IMP-03</td><td>解析中は進捗表示とキャンセルボタンを出す。キャンセル時は何も保存せず、途中生成物（画像コピー）を削除する。</td><td>e2e / unit</td><td class="st">⬜</td></tr>
+  <tr><td class="id">IMP-04</td><td>解析完了時に自動保存し、その解析を詳細に開く。明示的な「保存」ボタンは置かない。</td><td>e2e</td><td class="st">⬜</td></tr>
+  <tr><td class="id">IMP-05</td><td>名前の既定値は、ファイル経由なら拡張子を除いた元ファイル名、写真経由なら取り込み日時（例「2026-09-09 10:00」）。</td><td>unit</td><td class="st">⬜</td></tr>
+  <tr><td class="id">IMP-06</td><td>デコード不能・非対応形式のときはアラート「この画像は読み込めません」を出し、何も保存しない。</td><td>e2e / unit</td><td class="st">⬜</td></tr>
+  <tr><td class="id">IMP-07</td><td>ディスク書き込みに失敗したときはアラートを出し、途中生成物を削除する。</td><td>unit</td><td class="st">⬜</td></tr>
+  <tr><td class="id">IMP-08</td><td>他アプリからのドラッグ&ドロップ、カメラ撮影は提供しない。</td><td>—</td><td class="st">⏸</td></tr>
+</table></div>
+
+<h3 id="det">3.3 解析詳細（共通）</h3>
+<div class="wrap"><table>
+  <tr><th>ID</th><th>要件</th><th>検証</th><th>状態</th></tr>
+  <tr><td class="id">DET-01</td><td>セグメントコントロール「彩度 / 明度 / 色相」で 3 画面を切り替える。初期表示は「彩度」。</td><td>e2e</td><td class="st">⬜</td></tr>
+  <tr><td class="id">DET-02</td><td>ナビゲーションタイトルに解析の名前を表示する。</td><td>e2e</td><td class="st">⬜</td></tr>
+  <tr><td class="id">DET-03</td><td>ツールバー「再解析」で解像度シートを開き、選んだ解像度で解析結果を上書きする。画像コピーは保持する。</td><td>e2e / unit</td><td class="st">⬜</td></tr>
+  <tr><td class="id">DET-04</td><td>何も選択されていないとき、詳細には「左の一覧から解析を選ぶか、＋で画像を取り込んでください」と取り込みボタンを表示する。</td><td>e2e</td><td class="st">⬜</td></tr>
+</table></div>
+
+<h3 id="bar">3.4 彩度 / 明度 3D 棒グラフ</h3>
+<p>彩度画面と明度画面は同じ 3D ビューを使い、棒の高さに使う値だけが異なる（彩度 = <code>cell_saturation</code>、明度 = <code>cell_brightness</code>）。要件 ID の <code>BAR-*</code> は両画面に適用する。</p>
+<div class="wrap"><table>
+  <tr><th>ID</th><th>要件</th><th>検証</th><th>状態</th></tr>
+  <tr><td class="id">BAR-01</td><td>グリッドの各セルに棒を 1 本立てる。棒の配置は解析画像内のセル位置と一致させる（左右そのまま、画像の上辺が初期カメラから見て奥）。</td><td>unit（ジオメトリ）</td><td class="st">⬜</td></tr>
+  <tr><td class="id">BAR-02</td><td>棒の高さは値（0–1）に比例し、値 1.0 の高さ = グリッド長辺のセル数 × 0.5（セル幅 = 1 単位）。値 0 でも最大高さの 1% の高さを与える。</td><td>unit</td><td class="st">⬜</td></tr>
+  <tr><td class="id">BAR-03</td><td>棒は正方形断面で、太さはセル幅の 0.8（隙間 20%）。</td><td>unit</td><td class="st">⬜</td></tr>
+  <tr><td class="id">BAR-04</td><td>棒の色はセルの代表色（<code>cell_color</code>）。</td><td>unit</td><td class="st">⬜</td></tr>
+  <tr><td class="id">BAR-05</td><td>RealityKit で描画し、全棒を 1 つのメッシュに結合して 1 エンティティで描く。</td><td>e2e（表示確認）</td><td class="st">⬜</td></tr>
+  <tr><td class="id">BAR-06</td><td>床面に解析画像をテクスチャとして貼る。ツールバーのトグルで ON/OFF でき、既定は ON。</td><td>e2e</td><td class="st">⬜</td></tr>
+  <tr><td class="id">BAR-07</td><td>1 本指ドラッグでグリッド中心を軸に回転、ピンチでズーム（0.5〜4 倍）。「リセット」で初期カメラ（仰角 45°・方位 30°、グリッド全体が収まる距離）、「俯瞰」で真上からの視点に切り替える。</td><td>e2e（操作後スクショ） / unit（カメラ計算）</td><td class="st">⬜</td></tr>
+  <tr><td class="id">BAR-08</td><td>背景はダークグレー、ライティングは RealityKit 既定。</td><td>e2e</td><td class="st">⬜</td></tr>
+  <tr><td class="id">BAR-09</td><td>画面隅に凡例テキスト「高さ = 彩度 0–100%」（明度画面では「高さ = 明度 0–100%」）を表示する。</td><td>e2e</td><td class="st">⬜</td></tr>
+  <tr><td class="id">BAR-10</td><td>棒タップでの値表示、基準面・目盛り、カラーマップ切替は提供しない。</td><td>—</td><td class="st">⏸</td></tr>
+</table></div>
+
+<h3 id="hue">3.5 色相</h3>
+<div class="wrap"><table>
+  <tr><th>ID</th><th>要件</th><th>検証</th><th>状態</th></tr>
+  <tr><td class="id">HUE-01</td><td>解析画像を画面に収まるサイズで表示する。</td><td>e2e</td><td class="st">⬜</td></tr>
+  <tr><td class="id">HUE-02</td><td>画像上を 1 本指（指・Apple Pencil）でタップまたはドラッグすると、その位置の解析画像ピクセルが選択され、ドラッグ中は連続して更新される。</td><td>e2e（ドラッグ後スクショ） / unit（座標→ピクセル変換） / manual（Pencil）</td><td class="st">⬜</td></tr>
+  <tr><td class="id">HUE-03</td><td>選択ピクセルに白黒二重線の十字マーカーを表示し、指を離しても残す。</td><td>e2e</td><td class="st">⬜</td></tr>
+  <tr><td class="id">HUE-04</td><td>初期状態は未選択で、「画像をタップまたはなぞって色を選択」のヒントを表示する。</td><td>e2e</td><td class="st">⬜</td></tr>
+  <tr><td class="id">HUE-05</td><td>同画面内に色相環を表示する。赤（0°）を真上（12 時）に置き、時計回りに色相が増える。</td><td>unit（角度計算） / e2e</td><td class="st">⬜</td></tr>
+  <tr><td class="id">HUE-06</td><td>選択ピクセルの色相位置に色相環上のマーカーを表示し、選択の変化に追従する。</td><td>unit / e2e</td><td class="st">⬜</td></tr>
+  <tr><td class="id">HUE-07</td><td>選択色の数値を H（整数度 0–359、360 は 0）、S（整数 %）、B（整数 %）で表示し、選択色のスウォッチを表示する。</td><td>unit（丸め） / e2e</td><td class="st">⬜</td></tr>
+  <tr><td class="id">HUE-08</td><td>選択色の S が 5% 未満のとき、色相環マーカーを消し「無彩色」と表示する。数値の S・B は表示する。</td><td>unit / e2e</td><td class="st">⬜</td></tr>
+  <tr><td class="id">HUE-09</td><td>2 本指ピンチで画像をズーム、2 本指ドラッグでパンする。1 本指は常に選択に使う。</td><td>e2e</td><td class="st">⬜</td></tr>
+  <tr><td class="id">HUE-10</td><td>Pencil ホバー、ルーペ（拡大表示）は提供しない。</td><td>—</td><td class="st">⏸</td></tr>
+</table></div>
+
+<h2 id="ana">4. 解析仕様</h2>
+<div class="wrap"><table>
+  <tr><th>ID</th><th>要件</th><th>検証</th><th>状態</th></tr>
+  <tr><td class="id">ANA-01</td><td><strong>デコード</strong>: ImageIO（<code>CGImageSource</code>）で読み、EXIF 回転を適用し、長辺が 4096px を超える場合は 4096px に縮小する。</td><td>unit</td><td class="st">⬜</td></tr>
+  <tr><td class="id">ANA-02</td><td><strong>色の正規化</strong>: sRGB 8bit の RGBA に展開し、アルファは白（255,255,255）と合成して不透明にする。</td><td>unit</td><td class="st">⬜</td></tr>
+  <tr><td class="id">ANA-03</td><td><strong>HSB 変換</strong>: sRGB 8bit 成分から H ∈ [0,360)、S ∈ [0,1]、B ∈ [0,1] を計算する。B = max(R,G,B)/255、S = (max−min)/max（max = 0 のとき S = 0）。</td><td>unit</td><td class="st">⬜</td></tr>
+  <tr><td class="id">ANA-04</td><td><strong>グリッド分割</strong>: 長辺のセル数 N（Core は任意の N ≥ 1 を受け付け、UI は 32/64/128 のみ提示）。画像の長辺が N より小さいときは N = 長辺 px とする。短辺のセル数 = max(1, round(N × 短辺 / 長辺))。セル i のピクセル範囲は [floor(i·W/gridW), floor((i+1)·W/gridW)) とする（高さも同様）。</td><td>unit</td><td class="st">⬜</td></tr>
+  <tr><td class="id">ANA-05</td><td><strong>代表色相（最頻色相法）</strong>: セル内で S ≥ 0.05 のピクセルのみを対象に、色相を 5° 刻み 72 ビンへ S を重みとして積む。隣接ビン（±1）を加えて平滑化した値が最大のビンをピークとする。ピーク中心 ±15° に入るピクセルの色相を S 重みで円周平均したものを代表色相とする。</td><td>unit</td><td class="st">⬜</td></tr>
+  <tr><td class="id">ANA-06</td><td><strong>タイブレーク</strong>: 平滑化後の値が同じピークが複数あるとき、色相角が小さいビンを選ぶ。</td><td>unit</td><td class="st">⬜</td></tr>
+  <tr><td class="id">ANA-07</td><td><strong>無彩色セル</strong>: 対象ピクセルが 0 個のセルは色相未定義とし、代表色は S = 0、B = 平均 B のグレーにする。</td><td>unit</td><td class="st">⬜</td></tr>
+  <tr><td class="id">ANA-08</td><td><strong>セル値</strong>: <code>cell_saturation</code> = セル内全ピクセルの S の単純平均、<code>cell_brightness</code> = 同じく B の単純平均。代表色 = HSB(代表色相, cell_saturation, cell_brightness) を sRGB 8bit に変換したもの（四捨五入）。</td><td>unit</td><td class="st">⬜</td></tr>
+  <tr><td class="id">ANA-09</td><td>解析は決定的であること。同じ入力と N に対して常に同じ結果を返す。</td><td>unit</td><td class="st">⬜</td></tr>
+  <tr><td class="id">ANA-10</td><td>解析はキャンセル可能であること（<code>Task</code> のキャンセルに応答する）。</td><td>unit</td><td class="st">⬜</td></tr>
+</table></div>
+<p class="note">平均色（sRGB 平均・リニア光平均）で代表色を決める方式は、混色によって元画像に存在しない色相を生むため採用しない。円周平均のみの方式も二色セルで中間色相を生むため採用しない。</p>
+
+<h2 id="per">5. 永続化仕様</h2>
+<div class="wrap"><table>
+  <tr><th>ID</th><th>要件</th><th>検証</th><th>状態</th></tr>
+  <tr><td class="id">PER-01</td><td>SQLite を <code>Documents/color-scheme-analyzer.sqlite</code> に置き、GRDB.swift でアクセスする。マイグレーションは GRDB の <code>DatabaseMigrator</code> で管理する。iCloud は使わない。</td><td>unit</td><td class="st">⬜</td></tr>
+  <tr><td class="id">PER-02</td><td>元画像はバイト列を再エンコードせず <code>Documents/images/&lt;UUID&gt;.&lt;拡張子&gt;</code> にコピーする。拡張子は元ファイルの UTType から決める。</td><td>unit</td><td class="st">⬜</td></tr>
+  <tr><td class="id">PER-03</td><td>サムネイルは長辺 256px の JPEG（品質 0.8）を <code>thumbnail</code> に BLOB で保存する。</td><td>unit</td><td class="st">⬜</td></tr>
+  <tr><td class="id">PER-04</td><td>解析結果は <code>cell_color</code>（RGB8 × セル数）、<code>cell_saturation</code>・<code>cell_brightness</code>（Float32 リトルエンディアン × セル数）を行優先（左上から右へ、次に下の行）で格納する。</td><td>unit</td><td class="st">⬜</td></tr>
+  <tr><td class="id">PER-05</td><td>再解析は <code>image_path</code> の画像から計算し、同じ行の <code>grid_*</code>・<code>cell_*</code>・<code>analysis_version</code> を上書きする。</td><td>unit</td><td class="st">⬜</td></tr>
+  <tr><td class="id">PER-06</td><td>削除は DB 行と画像ファイルの両方を消す。ファイルが既にない場合もエラーにしない。</td><td>unit</td><td class="st">⬜</td></tr>
+  <tr><td class="id">PER-07</td><td><code>analysis_version</code> が現行と異なる解析を開いたとき、自動では再解析せず、詳細画面に「解析方式が更新されています。再解析できます」と表示する。</td><td>e2e / unit</td><td class="st">⬜</td></tr>
+</table></div>
+
+<h3>スキーマ（テーブル <code>analyses</code>）</h3>
+<pre><code>id                TEXT    PRIMARY KEY   -- UUID
+name              TEXT    NOT NULL
+created_at        TEXT    NOT NULL      -- ISO8601（タイムゾーン付き）
+image_path        TEXT    NOT NULL      -- Documents からの相対パス
+image_width       INTEGER NOT NULL      -- 解析画像のサイズ（4096px 上限適用後）
+image_height      INTEGER NOT NULL
+grid_width        INTEGER NOT NULL
+grid_height       INTEGER NOT NULL
+long_side_cells   INTEGER NOT NULL      -- ユーザーが選んだ N（32/64/128）
+cell_color        BLOB    NOT NULL      -- RGB8 × grid_width × grid_height
+cell_saturation   BLOB    NOT NULL      -- Float32 × grid_width × grid_height
+cell_brightness   BLOB    NOT NULL      -- Float32 × grid_width × grid_height
+thumbnail         BLOB    NOT NULL      -- JPEG
+analysis_version  TEXT    NOT NULL      -- 例 'hsb-dominant-v1'</code></pre>
+
+<h2 id="data">6. データ実例</h2>
+
+<h3>6.1 フィクスチャ <code>sample-4x4.png</code></h3>
+<p>4×4 px の PNG。N = 2 で解析すると 2×2 のグリッドになり、各セルは 2×2 px を含む。ピクセルの色（sRGB 8bit）は次のとおり。</p>
+<div class="pix">
+  <div style="background:#FF0000">R</div><div style="background:#FF0000">R</div><div style="background:#00FF00">G</div><div style="background:#00FF00">G</div>
+  <div style="background:#FF0000">R</div><div style="background:#FF0000">R</div><div style="background:#00FF00">G</div><div style="background:#FF0000">R</div>
+  <div style="background:#BBBBBB">Y</div><div style="background:#BBBBBB">Y</div><div style="background:#0000FF;color:#fffa">B</div><div style="background:#8080FF">L</div>
+  <div style="background:#BBBBBB">Y</div><div style="background:#FF0000">R</div><div style="background:#8080FF">L</div><div style="background:#0000FF;color:#fffa">B</div>
+</div>
+<table>
+  <tr><th>記号</th><th>RGB</th><th>H</th><th>S</th><th>B</th></tr>
+  <tr><td>R 赤</td><td>(255, 0, 0)</td><td>0°</td><td>1.000</td><td>1.000</td></tr>
+  <tr><td>G 緑</td><td>(0, 255, 0)</td><td>120°</td><td>1.000</td><td>1.000</td></tr>
+  <tr><td>Y グレー</td><td>(187, 187, 187)</td><td>未定義（S &lt; 0.05）</td><td>0.000</td><td>0.7333</td></tr>
+  <tr><td>B 青</td><td>(0, 0, 255)</td><td>240°</td><td>1.000</td><td>1.000</td></tr>
+  <tr><td>L 淡い青</td><td>(128, 128, 255)</td><td>240°</td><td>0.4980</td><td>1.000</td></tr>
+</table>
+
+<h3>6.2 期待される解析結果（N = 2）</h3>
+<div class="cells">
+  <div style="background:#FF0000">A (255,0,0)</div><div style="background:#00FF00">B (0,255,0)</div>
+  <div style="background:#CC9999">C (204,153,153)</div><div style="background:#4040FF">D (64,64,255)</div>
+</div>
+<div class="wrap"><table>
+  <tr><th>セル</th><th>含むピクセル</th><th>代表色相</th><th>cell_saturation</th><th>cell_brightness</th><th>cell_color</th><th>根拠</th></tr>
+  <tr><td>A（左上）</td><td>R×4</td><td>0°</td><td>1.000</td><td>1.000</td><td>(255, 0, 0)</td><td>単一色。</td></tr>
+  <tr><td>B（右上）</td><td>G×3, R×1</td><td>120°</td><td>1.000</td><td>1.000</td><td>(0, 255, 0)</td><td>緑 3 票 対 赤 1 票で緑がピーク。平均色なら (64,191,0) で色相約 100° になるが、それは採用しない。</td></tr>
+  <tr><td>C（左下）</td><td>Y×3, R×1</td><td>0°</td><td>0.250</td><td>0.800</td><td>(204, 153, 153)</td><td>グレーは S &lt; 0.05 でヒストグラムから除外され、赤だけがピーク。S 平均 = (0+0+0+1)/4、B 平均 = (0.7333×3 + 1)/4 = 0.8。HSB(0°, 0.25, 0.8) → max 204、min 204×0.75 = 153。</td></tr>
+  <tr><td>D（右下）</td><td>B×2, L×2</td><td>240°</td><td>0.7490</td><td>1.000</td><td>(64, 64, 255)</td><td>全ピクセル 240°。S 平均 = (1+1+0.4980+0.4980)/4 = 0.7490。HSB(240°, 0.7490, 1.0) → max 255、min 255×0.2510 = 64。</td></tr>
+</table></div>
+<p>棒の高さ（単位: セル幅 = 1、値 1.0 の高さ = 2 × 0.5 = 1.0）:</p>
+<table>
+  <tr><th>セル</th><th>中心座標 (x, z)</th><th>彩度画面の高さ</th><th>明度画面の高さ</th></tr>
+  <tr><td>A</td><td>(−0.5, −0.5)</td><td>1.000</td><td>1.000</td></tr>
+  <tr><td>B</td><td>(+0.5, −0.5)</td><td>1.000</td><td>1.000</td></tr>
+  <tr><td>C</td><td>(−0.5, +0.5)</td><td>0.250</td><td>0.800</td></tr>
+  <tr><td>D</td><td>(+0.5, +0.5)</td><td>0.749</td><td>1.000</td></tr>
+</table>
+<p>座標系は右手系で +y が上。x は画像の列方向（右が正）、z は画像の行方向で、画像の上辺（行 0）が −z（初期カメラから見て奥）。棒の断面は 0.8 × 0.8。</p>
+
+<h3>6.3 色相画面での表示例（同じフィクスチャ）</h3>
+<table>
+  <tr><th>選択ピクセル（行, 列）</th><th>色</th><th>表示 H / S / B</th><th>色相環マーカー</th></tr>
+  <tr><td>(1, 3)</td><td>(255, 0, 0)</td><td>0° / 100% / 100%</td><td>真上（12 時）</td></tr>
+  <tr><td>(2, 3)</td><td>(128, 128, 255)</td><td>240° / 50% / 100%</td><td>真上から時計回りに 240°（8 時の位置）</td></tr>
+  <tr><td>(2, 0)</td><td>(187, 187, 187)</td><td>— / 0% / 73%</td><td>非表示。「無彩色」と表示</td></tr>
+</table>
+
+<h3>6.4 DB 行の例</h3>
+<pre><code>id               = "6F9619FF-8B86-D011-B42D-00C04FC964FF"
+name             = "sample-4x4"
+created_at       = "2026-09-09T10:00:00+09:00"
+image_path       = "images/6F9619FF-8B86-D011-B42D-00C04FC964FF.png"
+image_width      = 4
+image_height     = 4
+grid_width       = 2
+grid_height      = 2
+long_side_cells  = 2
+cell_color       = FF0000 00FF00 CC9999 4040FF            -- 12 bytes（行優先: A, B, C, D）
+cell_saturation  = [1.0, 1.0, 0.25, 0.7490196]           -- Float32 × 4（LE）
+cell_brightness  = [1.0, 1.0, 0.8, 1.0]                  -- Float32 × 4（LE）
+thumbnail        = &lt;JPEG bytes&gt;
+analysis_version = "hsb-dominant-v1"</code></pre>
+
+<h3>6.5 実写フィクスチャ</h3>
+<p>テストリソースに長辺 512px 程度の実写を 2〜3 枚置く（風景 1、人物や物 1、イラスト風 1）。これらは E2E の表示確認とスクリーンショット用で、期待値は「例外なく解析が完了し、各画面が表示される」ことのみ。</p>
+
+<h2 id="nfr">7. 非機能要件・制約</h2>
+<div class="wrap"><table>
+  <tr><th>ID</th><th>要件</th><th>検証</th><th>状態</th></tr>
+  <tr><td class="id">NFR-01</td><td>永続化は端末内（Documents）のみ。iCloud capability を使わない（Apple Personal Team の制約）。</td><td>—</td><td class="st">⬜</td></tr>
+  <tr><td class="id">NFR-02</td><td>最小 iPadOS 26.0、デバイスファミリは iPad のみ、縦横両対応。</td><td>e2e（縦横スクショ）</td><td class="st">⬜</td></tr>
+  <tr><td class="id">NFR-03</td><td>解析は UI をブロックせずバックグラウンドで実行し、進捗を表示する。</td><td>e2e</td><td class="st">⬜</td></tr>
+  <tr><td class="id">NFR-04</td><td><span class="todo">目標値（要確認）</span>: 4096px・N = 128 の解析が iPad Air（第4世代）で 3 秒以内に完了する。</td><td>manual</td><td class="st">⬜</td></tr>
+  <tr><td class="id">NFR-05</td><td>Swift 6 の strict concurrency を有効にし、警告ゼロでビルドする。</td><td>build</td><td class="st">⬜</td></tr>
+  <tr><td class="id">NFR-06</td><td>関数は 10 行程度、全関数にコメント。適用範囲は本番・テスト・SwiftUI <code>body</code> すべて。宣言的な列挙は数えない。</td><td>review</td><td class="st">⬜</td></tr>
+</table></div>
+
+<h2 id="test">8. 検証基盤</h2>
+<ul>
+  <li><strong>Core</strong>: <code>Packages/ColorSchemeCore</code>（ターゲット <code>ColorAnalysis</code> / <code>ImageDecoding</code> / <code>Persistence</code>）。Swift Testing で <code>swift test</code>。6.1〜6.4 の期待値をそのままテストの期待値に使う。</li>
+  <li><strong>E2E</strong>: XCUITest。対象シミュレータは iPad Pro 13-inch (M5)。各テストは主要ステップで <code>XCTAttachment</code> によりスクリーンショットを撮り、<code>xcodebuild test -resultBundlePath</code> の結果から <code>xcresulttool</code> で <code>TestResults/&lt;日時&gt;/</code> に抽出する。<code>TestResults/</code> は gitignore。</li>
+  <li><strong>フィクスチャ経路</strong>: 起動引数 <code>-uiTestFixture &lt;name&gt;</code> を受け取ると、PhotosPicker を経由せずテストバンドル内の画像で取り込みフロー（解像度シート以降）を開始する。<code>-uiTestResetStore</code> で DB と画像ディレクトリを空にする。これらの引数は Debug ビルドのみ有効。</li>
+  <li><strong>アクセシビリティ識別子（E2E の契約）</strong>:
+    ライブラリ <code>library.list</code> / <code>library.row</code> / <code>library.addButton</code> / <code>library.emptyState</code> / <code>library.confirmDelete</code> / <code>library.renameField</code> / <code>library.renameSave</code>、
+    取り込み <code>import.fromPhotos</code> / <code>import.fromFiles</code> / <code>import.resolution.picker</code>（セグメント 32・64・128）/ <code>import.resolution.start</code> / <code>import.resolution.cancel</code> / <code>import.progress</code> / <code>import.progress.cancel</code>、
+    詳細 <code>detail.segment</code> / <code>detail.reanalyze</code> / <code>detail.emptyState</code> / <code>detail.versionBanner</code>、
+    3D <code>bar.view</code> / <code>bar.floorToggle</code> / <code>bar.reset</code> / <code>bar.topDown</code> / <code>bar.legend</code>、
+    色相 <code>hue.image</code> / <code>hue.hint</code> / <code>hue.marker</code> / <code>hue.wheel</code> / <code>hue.wheel.marker</code> / <code>hue.readout</code>（文言例「H 240° S 50% B 100%」「無彩色 S 0% B 73%」）/ <code>hue.swatch</code>。</li>
+  <li><strong>フィクスチャ</strong>: <code>scripts/make-fixtures.py</code> が <code>App/ColorSchemeAnalyzer/Fixtures/</code> に生成する。<code>sample-4x4.png</code>（6.1 の値）、<code>hatching.png</code>（赤緑の斜線。最頻色相法の効果確認用）、<code>gradient.png</code>、<code>photo-like.png</code>。</li>
+  <li><strong>E2E で自動化しない操作</strong>: 2 本指パン（XCUITest に API がない。ピンチは自動化する）、Apple Pencil、実機。</li>
+  <li><strong>Makefile</strong>: <code>make gen</code>（XcodeGen）、<code>make test-core</code>、<code>make test-ui</code>。</li>
+</ul>
+
+<h2 id="v2">9. v2 バックログ</h2>
+<ul>
+  <li>他アプリからのドラッグ&ドロップ取り込み（IMP-08）</li>
+  <li>棒タップで値を表示、基準面・目盛り、カラーマップ切替（BAR-10）</li>
+  <li>Pencil ホバー、ルーペ（HUE-10）</li>
+  <li>2 解析の並列比較画面</li>
+  <li>一覧の検索・並び替え（LIB-08）</li>
+  <li>別色空間（OKLCH など）への切替</li>
+  <li>CI（GitHub Actions）</li>
+</ul>
+
+<h2 id="progress">10. 進捗</h2>
+<table>
+  <tr><th>領域</th><th>状態</th><th>備考</th></tr>
+  <tr><td>プロジェクト雛形（XcodeGen / Core パッケージ / Makefile）</td><td>⬜ 未着手</td><td></td></tr>
+  <tr><td>ColorAnalysis（ANA-03〜ANA-09）</td><td>⬜ 未着手</td><td></td></tr>
+  <tr><td>ImageDecoding（ANA-01, ANA-02）</td><td>⬜ 未着手</td><td></td></tr>
+  <tr><td>Persistence（PER-*）</td><td>⬜ 未着手</td><td></td></tr>
+  <tr><td>ライブラリ / 取り込み（LIB-*, IMP-*, DET-*）</td><td>⬜ 未着手</td><td></td></tr>
+  <tr><td>3D 棒グラフ（BAR-*）</td><td>⬜ 未着手</td><td></td></tr>
+  <tr><td>色相（HUE-*）</td><td>⬜ 未着手</td><td></td></tr>
+  <tr><td>E2E 基盤（第 8 章）</td><td>⬜ 未着手</td><td></td></tr>
+</table>
+
+</main>
+</body>
+</html>
