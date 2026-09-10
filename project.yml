@@ -1,0 +1,82 @@
+name: ColorSchemeAnalyzer
+options:
+  bundleIdPrefix: dev.kitakou
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: false
+
+packages:
+  ColorSchemeCore:
+    path: Packages/ColorSchemeCore
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    SWIFT_APPROACHABLE_CONCURRENCY: YES
+    SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+    TARGETED_DEVICE_FAMILY: "2"
+    SUPPORTS_MACCATALYST: NO
+    SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+
+targets:
+  ColorSchemeAnalyzer:
+    type: application
+    platform: iOS
+    sources:
+      - path: App/ColorSchemeAnalyzer
+    dependencies:
+      - package: ColorSchemeCore
+        product: ColorAnalysis
+      - package: ColorSchemeCore
+        product: ImageDecoding
+      - package: ColorSchemeCore
+        product: Persistence
+      - package: ColorSchemeCore
+        product: AnalysisWorkflow
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: Color Scheme Analyzer
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        ITSAppUsesNonExemptEncryption: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.kitakou.ColorSchemeAnalyzer
+        PRODUCT_NAME: ColorSchemeAnalyzer
+
+  ColorSchemeAnalyzerUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: App/ColorSchemeAnalyzerUITests
+    dependencies:
+      - target: ColorSchemeAnalyzer
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.kitakou.ColorSchemeAnalyzerUITests
+        TEST_TARGET_NAME: ColorSchemeAnalyzer
+        GENERATE_INFOPLIST_FILE: YES
+        # XCTestCase のオーバーライドは nonisolated なので、既定の MainActor 分離を外す
+        SWIFT_DEFAULT_ACTOR_ISOLATION: nonisolated
+
+schemes:
+  ColorSchemeAnalyzer:
+    build:
+      targets:
+        ColorSchemeAnalyzer: all
+        ColorSchemeAnalyzerUITests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - ColorSchemeAnalyzerUITests
