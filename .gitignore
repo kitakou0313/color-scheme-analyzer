@@ -1,0 +1,18 @@
+# Xcode（project.yml から生成するため管理外）
+*.xcodeproj
+*.xcworkspace
+xcuserdata/
+DerivedData/
+*.xcresult
+
+# SwiftPM
+.build/
+.swiftpm/
+Packages/*/.build/
+Packages/*/.swiftpm/
+
+# テスト成果物（スクリーンショット等）
+TestResults/
+
+# macOS
+.DS_Store
