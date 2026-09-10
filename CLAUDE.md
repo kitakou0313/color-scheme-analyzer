@@ -15,7 +15,12 @@ iPadOS向けアプリ。画像を入力とし、その画像について以下�
 - ある画像について上記の画面を生成したら永続化しておき、後で再度開けるようにすること（画像間での比較のため）
 
 ## ビルド/テスト
-以降記入
+- 前提: Xcode 26 と XcodeGen（`brew install xcodegen`）。`.xcodeproj` は生成物なので `make gen` で作る（git 管理外）
+- `make test-core`: `Packages/ColorSchemeCore` の単体テスト（Swift Testing）。Xcode 本体なしで `swift test` が回る
+- `make test-ui`: iPad Pro 13-inch (M5) シミュレータで XCUITest を実行し、スクリーンショットを `TestResults/<日時>/screenshots/` に抽出する（git 管理外）
+- `python3 scripts/make-fixtures.py`: E2E 用フィクスチャ画像を `App/ColorSchemeAnalyzer/Fixtures/` に再生成する
+- E2E 用の起動引数（Debug ビルドのみ有効）: `-uiTestResetStore`（DB と画像を消してから起動）、`-uiTestFixture <name>`（sample-4x4 / hatching / gradient / photo-like をピッカーなしで取り込みフローに流す）
+- 実機での実行は Xcode で Apple ID（Personal Team）を設定して署名する。自動化の対象外
 
 ## 開発方針
 - 仕様、アーキテクチャなどの管理ファイル
@@ -147,3 +152,12 @@ analysis_version TEXT        -- 例 hsb-dominant-v1（手法変更時の再解�
 - テストフレームワーク: Core は Swift Testing（`@Test` / `#expect`）、E2E は XCTest（XCUITest）。
 - コーディングルールの適用範囲は「コーディングスタイル」節に記載（全コードに適用、宣言的列挙は数えない）。
 - Git 運用: コミットはユーザーが行う。Claude は作業ツリーの変更までとし、コミット・push はしない。
+
+### 実装上の決定（2026-09-10、v1 実装時）
+- 棒の色付け: 全棒を 1 メッシュにし、色はセル数と同じ大きさのテクスチャで与える（各棒の UV をテクセル中心に固定、ミップマップなし）。頂点色は使わない。
+- 床テクスチャの ON/OFF: テクスチャ付きの床と無地の床の 2 エンティティを `isEnabled` で切り替える。
+- カメラ: Core の `OrbitCamera` が床面中心を注視点に位置を決める。フィット距離は縦横の視野角の狭い方で決める（縦画面で切れないように）。
+- 色相画面の入力: SwiftUI の DragGesture は指の本数を区別できないため、UIKit の認識器（1 本指専用のカスタム認識器・2 本指パン・ピンチ）を `UIGestureRecognizerRepresentable` で使う。
+- 並行性: アプリターゲットは `SWIFT_DEFAULT_ACTOR_ISOLATION=MainActor`。UI テストターゲットは XCTestCase のオーバーライドが nonisolated のため `nonisolated` に戻す。Core の重い処理は `@concurrent` で呼び出し側のアクターから外す。
+- RealityView のコンテンツ型は iOS では `RealityViewCameraContent`（visionOS の `RealityViewContent` とは別）。
+- XCUITest: アラート・確認ダイアログ・RealityView のボタン/要素は複数一致することがあるので `firstMatch` で取る。スクショは `xcresulttool export attachments` で取り出し、manifest.json の名前で `screenshots/<テスト>/<名前>.png` に並べる。
