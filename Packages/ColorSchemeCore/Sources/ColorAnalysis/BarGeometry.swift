@@ -1,0 +1,51 @@
+/// 棒の高さに使う値の種類
+public enum BarMetric: Hashable, Sendable {
+    case saturation
+    case brightness
+}
+
+/// 3D 棒グラフの形状データ（BAR-01〜BAR-04）。セル幅を 1 単位とし、+y を上、画像の上辺を −z、左辺を −x に置く。
+public struct BarGeometry: Hashable, Sendable {
+    /// 棒 1 本。(x, z) は底面中心、height は高さ、color は代表色
+    public struct Bar: Hashable, Sendable {
+        public let x: Float
+        public let z: Float
+        public let height: Float
+        public let color: RGB8
+    }
+
+    public let columns: Int
+    public let rows: Int
+    public let bars: [Bar]
+    /// 棒の断面の一辺（セル幅の 0.8）
+    public let barWidth: Float = 0.8
+    /// 値 1.0 に対応する高さ（長辺セル数 × 0.5）
+    public let maxHeight: Float
+    /// 値 0 でも保つ高さの比率（最大高さの 1%）
+    public static let minimumHeightRatio: Float = 0.01
+
+    /// 解析結果から棒を並べる。bars は行優先でセルと同じ順序
+    public static func make(from result: AnalysisResult, metric: BarMetric) -> BarGeometry {
+        let values = metric == .saturation ? result.saturations : result.brightnesses
+        return make(grid: result.grid, values: values, colors: result.colors)
+    }
+
+    /// グリッドと、セルごとの値（0–1）・代表色から棒を並べる（保存済みレコードからの復元にも使う）
+    public static func make(grid: GridLayout, values: [Float], colors: [RGB8]) -> BarGeometry {
+        precondition(values.count == grid.cellCount && colors.count == grid.cellCount, "values/colors must match grid")
+        let maxHeight = Float(max(grid.columns, grid.rows)) * 0.5
+        let bars = values.indices.map { index in
+            bar(value: values[index], color: colors[index], at: index, grid: grid, maxHeight: maxHeight)
+        }
+        return BarGeometry(columns: grid.columns, rows: grid.rows, bars: bars, maxHeight: maxHeight)
+    }
+
+    /// セル番号から中心座標を求め、値を高さに変換して棒を作る
+    private static func bar(value: Float, color: RGB8, at index: Int, grid: GridLayout, maxHeight: Float) -> Bar {
+        let row = index / grid.columns, column = index % grid.columns
+        let x = Float(column) - Float(grid.columns - 1) / 2
+        let z = Float(row) - Float(grid.rows - 1) / 2
+        let height = max(value, minimumHeightRatio) * maxHeight
+        return Bar(x: x, z: z, height: height, color: color)
+    }
+}
