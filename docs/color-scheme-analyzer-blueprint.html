@@ -278,7 +278,7 @@ thumbnail        = &lt;JPEG bytes&gt;
 analysis_version = "hsb-dominant-v1"</code></pre>
 
 <h3>6.5 実写フィクスチャ</h3>
-<p>テストリソースに長辺 512px 程度の実写を 2〜3 枚置く（風景 1、人物や物 1、イラスト風 1）。これらは E2E の表示確認とスクリーンショット用で、期待値は「例外なく解析が完了し、各画面が表示される」ことのみ。</p>
+<p>手続き生成した画像だけでは細部の階調やノイズを再現できないため、著作権上クリアな実写を 1 枚置く（<code>starry-night.png</code>: Vincent van Gogh, <em>The Starry Night</em>, 1889。パブリックドメイン、出典は <code>App/ColorSchemeAnalyzer/Fixtures/ATTRIBUTION.md</code>、取得は <code>scripts/fetch-painting-fixture.sh</code>）。これは E2E の表示確認とスクリーンショット用で、期待値は「例外なく解析が完了し、各画面が表示される」ことのみ（<code>ImportFlowUITests.testRealPaintingFixtureCompletesAndDisplaysAllTabs</code>）。風景・人物など他の実写カテゴリを追加する場合も、パブリックドメインまたは CC0 など再配布可能なライセンスの画像に限る。</p>
 
 <h2 id="nfr">7. 非機能要件・制約</h2>
 <div class="wrap"><table>
@@ -302,7 +302,7 @@ analysis_version = "hsb-dominant-v1"</code></pre>
     詳細 <code>detail.segment</code> / <code>detail.reanalyze</code> / <code>detail.emptyState</code> / <code>detail.versionBanner</code>、
     3D <code>bar.view</code> / <code>bar.floorToggle</code> / <code>bar.reset</code> / <code>bar.topDown</code> / <code>bar.legend</code>、
     色相 <code>hue.image</code> / <code>hue.hint</code> / <code>hue.marker</code> / <code>hue.wheel</code> / <code>hue.wheel.marker</code> / <code>hue.readout</code>（文言例「H 240° S 50% B 100%」「無彩色 S 0% B 73%」）/ <code>hue.swatch</code>。</li>
-  <li><strong>フィクスチャ</strong>: <code>scripts/make-fixtures.py</code> が <code>App/ColorSchemeAnalyzer/Fixtures/</code> に生成する。<code>sample-4x4.png</code>（6.1 の値）、<code>hatching.png</code>（赤緑の斜線。最頻色相法の効果確認用）、<code>gradient.png</code>、<code>photo-like.png</code>。</li>
+  <li><strong>フィクスチャ</strong>: <code>App/ColorSchemeAnalyzer/Fixtures/</code>。手続き生成（<code>scripts/make-fixtures.py</code>、ネットワーク不要）の <code>sample-4x4.png</code>（6.1 の値）・<code>hatching.png</code>（赤緑の斜線。最頻色相法の効果確認用）・<code>gradient.png</code>、および実写（<code>scripts/fetch-painting-fixture.sh</code>）の <code>starry-night.png</code>（6.5 参照、出典は同ディレクトリの <code>ATTRIBUTION.md</code>）。</li>
   <li><strong>E2E で自動化しない操作</strong>: 2 本指パン（XCUITest に API がない。ピンチは自動化する）、Apple Pencil、実機。</li>
   <li><strong>Makefile</strong>: <code>make gen</code>（XcodeGen）、<code>make test-core</code>、<code>make test-ui</code>。</li>
 </ul>

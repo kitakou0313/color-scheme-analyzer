@@ -1,19 +1,18 @@
 import XCTest
 
-/// IMP-02〜IMP-04, DET-01, BAR-*, HUE-*: フィクスチャ sample-4x4 を取り込み、3 画面を操作して確認する
+/// IMP-02〜IMP-04, DET-01, BAR-*, HUE-*: フィクスチャを取り込み、3 画面を操作して確認する
 final class ImportFlowUITests: XCTestCase {
     private var app: XCUIApplication!
 
-    /// ストアを空にし、4×4 フィクスチャで取り込みフローを開始した状態で起動する
+    /// アプリのインスタンスだけ用意する。起動は各テストが launch(fixture:) で行う
     override func setUpWithError() throws {
         continueAfterFailure = false
         app = XCUIApplication()
-        app.launchArguments = ["-uiTestResetStore", "-uiTestFixture", "sample-4x4"]
-        app.launch()
     }
 
-    /// 解像度シート → 解析 → 詳細（彩度・明度・色相）を一続きで確認する
+    /// 解像度シート → 解析 → 詳細（彩度・明度・色相）を一続きで確認する（4×4 フィクスチャ、期待値は blueprint 6.1〜6.3）
     func testImportFixtureAndInspectAllTabs() throws {
+        launch(fixture: "sample-4x4")
         importFixture()
         snapshot("02-saturation")
         segment.buttons["明度"].tap()
@@ -24,6 +23,7 @@ final class ImportFlowUITests: XCTestCase {
 
     /// BAR-07: リセット・俯瞰・ピンチ・床トグルを操作してスクリーンショットを残す
     func testBarChartControls() throws {
+        launch(fixture: "sample-4x4")
         importFixture()
         let view = app.descendants(matching: .any)["bar.view"].firstMatch
         view.swipeLeft()
@@ -35,6 +35,25 @@ final class ImportFlowUITests: XCTestCase {
         snapshot("09-bar-zoomed")
         app.descendants(matching: .any)["bar.floorToggle"].firstMatch.tap()
         snapshot("10-bar-floor-off")
+    }
+
+    /// blueprint 6.5: 実写フィクスチャ（パブリックドメインの絵画、出典は Fixtures/ATTRIBUTION.md）は
+    /// 期待値を持たず、例外なく解析が完了し 3 画面とも表示されることだけを確認する
+    func testRealPaintingFixtureCompletesAndDisplaysAllTabs() throws {
+        launch(fixture: "starry-night")
+        importFixture()
+        snapshot("16-painting-saturation")
+        segment.buttons["明度"].tap()
+        snapshot("17-painting-brightness")
+        segment.buttons["色相"].tap()
+        XCTAssertTrue(app.images["hue.image"].waitForExistence(timeout: 15), "色相画面に画像が表示される")
+        snapshot("18-painting-hue")
+    }
+
+    /// ストアを空にし、指定フィクスチャで取り込みフローを開始した状態でアプリを起動する
+    private func launch(fixture: String) {
+        app.launchArguments = ["-uiTestResetStore", "-uiTestFixture", fixture]
+        app.launch()
     }
 
     /// IMP-02〜IMP-04: 64 を選んで開始し、詳細が開くまで待つ

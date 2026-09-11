@@ -19,7 +19,7 @@ iPadOS向けアプリ。画像を入力とし、その画像について以下�
 - `make test-core`: `Packages/ColorSchemeCore` の単体テスト（Swift Testing）。Xcode 本体なしで `swift test` が回る
 - `make test-ui`: iPad Pro 13-inch (M5) シミュレータで XCUITest を実行し、スクリーンショットを `TestResults/<日時>/screenshots/` に抽出する（git 管理外）
 - `python3 scripts/make-fixtures.py`: E2E 用フィクスチャ画像を `App/ColorSchemeAnalyzer/Fixtures/` に再生成する
-- E2E 用の起動引数（Debug ビルドのみ有効）: `-uiTestResetStore`（DB と画像を消してから起動）、`-uiTestFixture <name>`（sample-4x4 / hatching / gradient / photo-like をピッカーなしで取り込みフローに流す）
+- E2E 用の起動引数（Debug ビルドのみ有効）: `-uiTestResetStore`（DB と画像を消してから起動）、`-uiTestFixture <name>`（sample-4x4 / hatching / gradient / starry-night をピッカーなしで取り込みフローに流す。starry-night はパブリックドメインの実写絵画。出典は `App/ColorSchemeAnalyzer/Fixtures/ATTRIBUTION.md`、取得は `scripts/fetch-painting-fixture.sh`）
 - 実機での実行は Xcode で Apple ID（Personal Team）を設定して署名する。自動化の対象外
 
 ## 開発方針

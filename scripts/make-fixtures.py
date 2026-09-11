@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-"""E2E フィクスチャ画像（PNG）を標準ライブラリだけで生成する。
+"""E2E フィクスチャ画像（PNG）を標準ライブラリだけで生成する。ネットワークには繋がない。
 
 - sample-4x4.png : blueprint 6.1 の 4×4 フィクスチャ（期待値が手計算済み）
 - hatching.png   : 赤と緑の斜線ハッチング。最頻色相法と平均色の差が出る
 - gradient.png   : 横に色相、縦に明度が変わるグラデーション
-- photo-like.png : 滑らかな色の塊にノイズを載せた写真風
+
+実写フィクスチャ（starry-night.png）はここでは生成しない。著作権のクリアなパブリック
+ドメイン画像を使うため scripts/fetch-painting-fixture.sh で取得する（実行にはネット
+ワークが必要。取得済みの PNG は git に commit 済みなので通常は再実行不要）。
 """
-import math
-import random
 import struct
 import zlib
 from pathlib import Path
@@ -63,28 +64,10 @@ def gradient(width=512, height=384):
     return width, height, rows
 
 
-def photo_like(width=512, height=384, seed=7):
-    rng = random.Random(seed)
-    blobs = [(rng.uniform(0, width), rng.uniform(0, height), rng.uniform(60, 160), rng.uniform(0, 360)) for _ in range(6)]
-    rows = []
-    for y in range(height):
-        row = []
-        for x in range(width):
-            h_acc, w_acc = 0.0, 0.0
-            for bx, by, radius, hue in blobs:
-                w = math.exp(-((x - bx) ** 2 + (y - by) ** 2) / (2 * radius**2))
-                h_acc += w * hue
-                w_acc += w
-            hue = (h_acc / w_acc) if w_acc > 1e-6 else 200
-            value = 0.35 + 0.6 * (1 - y / height) + rng.uniform(-0.05, 0.05)
-            row.extend(hsv_to_rgb(hue % 360, 0.55, max(0, min(1, value))))
-        rows.append(row)
-    return width, height, rows
-
-
 if __name__ == "__main__":
     OUT.mkdir(parents=True, exist_ok=True)
-    for name, fn in [("sample-4x4", sample_4x4), ("hatching", hatching), ("gradient", gradient), ("photo-like", photo_like)]:
+    for name, fn in [("sample-4x4", sample_4x4), ("hatching", hatching), ("gradient", gradient)]:
         w, h, rows = fn()
         write_png(OUT / f"{name}.png", w, h, rows)
         print(f"{name}.png {w}x{h}")
+    print("starry-night.png は scripts/fetch-painting-fixture.sh で別途取得（このスクリプトでは生成しない）")
