@@ -27,7 +27,17 @@ public struct BarGeometry: Hashable, Sendable {
     /// 解析結果から棒を並べる。bars は行優先でセルと同じ順序
     public static func make(from result: AnalysisResult, metric: BarMetric) -> BarGeometry {
         let values = metric == .saturation ? result.saturations : result.brightnesses
-        return make(grid: result.grid, values: values, colors: result.colors)
+        let colors = barColors(metric: metric, cellColors: result.colors, brightnesses: result.brightnesses)
+        return make(grid: result.grid, values: values, colors: colors)
+    }
+
+    /// BAR-04: 棒の色を決める。彩度画面はセルの代表色、明度画面はセルの明度に連動した白〜黒のグレースケール
+    /// （代表色の色相は使わない）。保存済みレコードから復元する側（BarChartView）とロジックを共有する。
+    public static func barColors(metric: BarMetric, cellColors: [RGB8], brightnesses: [Float]) -> [RGB8] {
+        switch metric {
+        case .saturation: return cellColors
+        case .brightness: return brightnesses.map { RGB8(HSB(hue: nil, saturation: 0, brightness: Double($0))) }
+        }
     }
 
     /// グリッドと、セルごとの値（0–1）・代表色から棒を並べる（保存済みレコードからの復元にも使う）

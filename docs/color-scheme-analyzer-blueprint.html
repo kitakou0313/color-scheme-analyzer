@@ -76,7 +76,7 @@
   <tr><td>HSB</td><td>色相 H（0–360°、赤で始まり赤で終わる）、彩度 S（0–100%）、明度 B（0–100%）。Procreate のカラーパネル「Value」タブと同じ定義。sRGB 成分から計算する。</td></tr>
   <tr><td>解析画像</td><td>取り込んだ画像に EXIF 回転・白合成・sRGB 変換・長辺 4096px 上限の縮小を適用したもの。解析と色相画面の表示・選択はすべてこの画像に対して行う。</td></tr>
   <tr><td>グリッド / セル</td><td>解析画像を長辺 N セル（N = 32 / 64 / 128、既定 64）に分割したもの。棒グラフの棒 1 本がセル 1 個に対応する。</td></tr>
-  <tr><td>代表色</td><td>セルを 1 色で表した色。色相は最頻色相法で決め、S/B はセル内全ピクセルの平均。棒の色に使う。</td></tr>
+  <tr><td>代表色</td><td>セルを 1 色で表した色。色相は最頻色相法で決め、S/B はセル内全ピクセルの平均。彩度画面の棒の色に使う（明度画面は代表色ではなくセルの明度から作るグレースケールを使う。「3.4 彩度 / 明度 3D 棒グラフ」参照）。</td></tr>
   <tr><td>解析（レコード）</td><td>1 回の取り込みで生成される保存単位。画像コピー・解析結果・メタデータからなる。</td></tr>
   <tr><td>無彩色</td><td>S が 5% 未満の色。色相は未定義として扱う。</td></tr>
 </table>
@@ -130,13 +130,13 @@
 </table></div>
 
 <h3 id="bar">3.4 彩度 / 明度 3D 棒グラフ</h3>
-<p>彩度画面と明度画面は同じ 3D ビューを使い、棒の高さに使う値だけが異なる（彩度 = <code>cell_saturation</code>、明度 = <code>cell_brightness</code>）。要件 ID の <code>BAR-*</code> は両画面に適用する。</p>
+<p>彩度画面と明度画面は同じ 3D ビューを使うが、棒の高さに使う値（彩度 = <code>cell_saturation</code>、明度 = <code>cell_brightness</code>）に加え、棒の色も画面ごとに異なる（BAR-04）。要件 ID の <code>BAR-*</code> は特記なき限り両画面に適用する。</p>
 <div class="wrap"><table>
   <tr><th>ID</th><th>要件</th><th>検証</th><th>状態</th></tr>
   <tr><td class="id">BAR-01</td><td>グリッドの各セルに棒を 1 本立てる。棒の配置は解析画像内のセル位置と一致させる（左右そのまま、画像の上辺が初期カメラから見て奥）。</td><td>unit（ジオメトリ）</td><td class="st">✅</td></tr>
   <tr><td class="id">BAR-02</td><td>棒の高さは値（0–1）に比例し、値 1.0 の高さ = グリッド長辺のセル数 × 0.5（セル幅 = 1 単位）。値 0 でも最大高さの 1% の高さを与える。</td><td>unit</td><td class="st">✅</td></tr>
   <tr><td class="id">BAR-03</td><td>棒は正方形断面で、太さはセル幅の 0.8（隙間 20%）。</td><td>unit</td><td class="st">✅</td></tr>
-  <tr><td class="id">BAR-04</td><td>棒の色はセルの代表色（<code>cell_color</code>）。</td><td>unit</td><td class="st">✅</td></tr>
+  <tr><td class="id">BAR-04</td><td>棒の色は画面ごとに異なる。彩度画面はセルの代表色（<code>cell_color</code>）。明度画面はセルの明度（<code>cell_brightness</code>）に連動した白〜黒のグレースケール（明度 1.0 が白、0.0 が黒。代表色の色相は使わない）。</td><td>unit</td><td class="st">✅</td></tr>
   <tr><td class="id">BAR-05</td><td>RealityKit で描画し、全棒を 1 つのメッシュに結合して 1 エンティティで描く。</td><td>e2e（表示確認）</td><td class="st">✅</td></tr>
   <tr><td class="id">BAR-06</td><td>床面に解析画像をテクスチャとして貼る。ツールバーのトグルで ON/OFF でき、既定は ON。</td><td>e2e</td><td class="st">✅</td></tr>
   <tr><td class="id">BAR-07</td><td>1 本指ドラッグでグリッド中心を軸に回転、ピンチでズーム（0.5〜4 倍）。「リセット」で初期カメラ（仰角 45°・方位 30°、グリッド全体が収まる距離）、「俯瞰」で真上からの視点に切り替える。</td><td>e2e（操作後スクショ） / unit（カメラ計算）</td><td class="st">✅</td></tr>
@@ -244,6 +244,14 @@ analysis_version  TEXT    NOT NULL      -- 例 'hsb-dominant-v1'</code></pre>
   <tr><td>D</td><td>(+0.5, +0.5)</td><td>0.749</td><td>1.000</td></tr>
 </table>
 <p>座標系は右手系で +y が上。x は画像の列方向（右が正）、z は画像の行方向で、画像の上辺（行 0）が −z（初期カメラから見て奥）。棒の断面は 0.8 × 0.8。</p>
+<p>棒の色（BAR-04）: 彩度画面はセルの代表色（<code>cell_color</code>、6.2 冒頭の A/B/C/D の色）をそのまま使う。明度画面は <code>cell_brightness</code> を HSB(hue: なし, S: 0, B: cell_brightness) として sRGB 8bit に変換したグレースケール。</p>
+<table>
+  <tr><th>セル</th><th>cell_brightness</th><th>明度画面の棒の色</th></tr>
+  <tr><td>A</td><td>1.000</td><td>(255, 255, 255)</td></tr>
+  <tr><td>B</td><td>1.000</td><td>(255, 255, 255)</td></tr>
+  <tr><td>C</td><td>0.800</td><td>(204, 204, 204)</td></tr>
+  <tr><td>D</td><td>1.000</td><td>(255, 255, 255)</td></tr>
+</table>
 
 <h3>6.3 色相画面での表示例（同じフィクスチャ）</h3>
 <table>

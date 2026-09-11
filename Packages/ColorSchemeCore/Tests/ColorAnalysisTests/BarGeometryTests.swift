@@ -52,10 +52,19 @@ struct BarGeometryTests {
         #expect(g.barWidth == 0.8)
     }
 
-    /// BAR-04: 棒の色はセルの代表色
-    @Test func barColorsAreCellColors() {
+    /// BAR-04: 彩度画面の棒の色はセルの代表色のまま
+    @Test func saturationBarColorsAreCellColors() {
         let g = BarGeometry.make(from: Self.result, metric: .saturation)
         #expect(g.bars.map(\.color) == Self.result.colors)
+    }
+
+    /// BAR-04: 明度画面の棒の色はセルの明度に連動した白〜黒のグレースケール（代表色の色相は使わない）。
+    /// 期待値は明度 [1, 1, 0.8, 1] を HSB(nil, 0, B) → RGB8 に変換した手計算（0.8×255=204）。
+    @Test func brightnessBarColorsAreGrayscale() {
+        let g = BarGeometry.make(from: Self.result, metric: .brightness)
+        let white = RGB8(r: 255, g: 255, b: 255)
+        let gray80 = RGB8(r: 204, g: 204, b: 204)
+        #expect(g.bars.map(\.color) == [white, white, gray80, white])
     }
 
     /// 64×48 グリッドでは最大高さ 32、x は −31.5〜31.5、z は −23.5〜23.5

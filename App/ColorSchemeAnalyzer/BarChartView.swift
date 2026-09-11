@@ -14,10 +14,11 @@ struct BarChartView: View {
     @State private var dragStart: OrbitCamera?
     @State private var zoomStart: OrbitCamera?
 
-    /// 保存済みレコードから棒の形状を作る
+    /// 保存済みレコードから棒の形状を作る。色は BAR-04 に従い彩度画面は代表色、明度画面はグレースケール
     private var geometry: BarGeometry {
         let values = metric == .saturation ? record.saturations : record.brightnesses
-        return BarGeometry.make(grid: record.grid, values: values, colors: record.colors)
+        let colors = BarGeometry.barColors(metric: metric, cellColors: record.colors, brightnesses: record.brightnesses)
+        return BarGeometry.make(grid: record.grid, values: values, colors: colors)
     }
 
     var body: some View {
