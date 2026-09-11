@@ -162,3 +162,15 @@ analysis_version TEXT        -- 例 hsb-dominant-v1（手法変更時の再解�
 - 並行性: アプリターゲットは `SWIFT_DEFAULT_ACTOR_ISOLATION=MainActor`。UI テストターゲットは XCTestCase のオーバーライドが nonisolated のため `nonisolated` に戻す。Core の重い処理は `@concurrent` で呼び出し側のアクターから外す。
 - RealityView のコンテンツ型は iOS では `RealityViewCameraContent`（visionOS の `RealityViewContent` とは別）。
 - XCUITest: アラート・確認ダイアログ・RealityView のボタン/要素は複数一致することがあるので `firstMatch` で取る。スクショは `xcresulttool export attachments` で取り出し、manifest.json の名前で `screenshots/<テスト>/<名前>.png` に並べる。
+
+### 基準棒（最大値サンプル）の追加（2026-09-11、要件ヒアリング）
+- 目的: 彩度・明度の 3D 棒グラフで、実際の画像から得た値と理論上の最大値（100%）との差を視覚的に比較しやすくするため、新要件 `BAR-11` として基準棒を追加する。
+- 「最大値」の意味: そのデータの中での最大ではなく、S=100%/B=100% という理論上の固定値。画像の内容に関わらず常に同じ高さ。
+- 表現形式: 3D シーン内に実データの棒と同じ縮尺で基準棒を1本追加する（2D の見本や、v1 では出さないと決めている基準面・目盛り（BAR-10）は採用しない）。
+- 色: 彩度画面は HSB(0°, 100%, 100%) の純赤、明度画面は既存のグレースケール規則どおり白（HSB(nil, 0%, 100%)）。実際にその値が持つ色をそのまま見せる。
+- 実データとの区別: 基準棒だけ黒白の破線調ワイヤーフレーム枠を付ける（実データの棒は枠なし）。3D テキストラベルは追加しない。
+- 配置: グリッド奥の角（行0・列0のセル）から対角線上にセル1個分（1単位）離れた位置に置く。`grid_width`/`grid_height` やセルデータには含めない、描画時にのみ追加する合成物。
+- カメラ: 初期カメラのフィット距離（`OrbitCamera.fitDistance`）に `extraMargin` を追加し、基準棒を含めた範囲が常にリセット時の視界に収まるようにする（`BarChartScene.referenceBarMargin = 1`）。
+- 表示切替: トグルは設けず常時表示。
+- 凡例（BAR-09）に1行追記: 「破線枠の棒 = 彩度100%の例」（明度画面は「明度100%の例」）。
+- 実装: `BarGeometry.referenceBar`（Core、位置・高さ・色を計算し unit test で検証）と、App 側の `ReferenceBarOutline`（破線枠、軸に平行な辺だけなので回転計算は不要）・`BarChartMesh.singleBarDescriptor`（塗り用の単体メッシュ）で構成。破線枠の見た目自体は unit test 対象外（3D 表示確認とスクショの方針どおり）。

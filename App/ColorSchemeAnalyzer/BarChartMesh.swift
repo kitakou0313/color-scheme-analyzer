@@ -25,6 +25,18 @@ enum BarChartMesh {
         return descriptor
     }
 
+    /// BAR-11: 基準棒1本だけの MeshDescriptor。フラットカラー材質と組み合わせるので UV はダミー
+    static func singleBarDescriptor(_ bar: BarGeometry.Bar, halfWidth: Float) -> MeshDescriptor {
+        var builder = Builder()
+        append(bar, uv: .zero, halfWidth: halfWidth, to: &builder)
+        var descriptor = MeshDescriptor(name: "referenceBar")
+        descriptor.positions = MeshBuffers.Positions(builder.positions)
+        descriptor.normals = MeshBuffers.Normals(builder.normals)
+        descriptor.textureCoordinates = MeshBuffers.TextureCoordinates(builder.uvs)
+        descriptor.primitives = .triangles(builder.indices)
+        return descriptor
+    }
+
     /// セル番号に対応するテクセル中心の UV（画像の上の行が v = 1 側）
     private static func uv(forCell index: Int, geometry: BarGeometry) -> SIMD2<Float> {
         let column = index % geometry.columns, row = index / geometry.columns

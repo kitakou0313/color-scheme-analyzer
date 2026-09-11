@@ -77,6 +77,38 @@ struct BarGeometryTests {
         #expect(g.bars.last?.x == 31.5 && g.bars.last?.z == 23.5)
     }
 
+    /// BAR-11: 基準棒はグリッド奥の角（行0・列0のセル）から対角線上にセル1個分離れた位置に置く
+    @Test func referenceBarIsPlacedBeyondFarCorner() {
+        let g = BarGeometry.make(from: Self.result, metric: .saturation)
+        #expect(g.referenceBar.x == -1.5 && g.referenceBar.z == -1.5)
+    }
+
+    /// BAR-11: 基準棒の高さは値 1.0（maxHeight）と同じ
+    @Test func referenceBarHeightIsMaxHeight() {
+        let g = BarGeometry.make(from: Self.result, metric: .saturation)
+        #expect(g.referenceBar.height == g.maxHeight)
+    }
+
+    /// BAR-11: 彩度画面の基準棒は純赤 HSB(0°, 100%, 100%)
+    @Test func referenceBarColorForSaturationIsPureRed() {
+        let g = BarGeometry.make(from: Self.result, metric: .saturation)
+        #expect(g.referenceBar.color == RGB8(r: 255, g: 0, b: 0))
+    }
+
+    /// BAR-11: 明度画面の基準棒は白（既存のグレースケール規則で明度 1.0 相当）
+    @Test func referenceBarColorForBrightnessIsWhite() {
+        let g = BarGeometry.make(from: Self.result, metric: .brightness)
+        #expect(g.referenceBar.color == RGB8(r: 255, g: 255, b: 255))
+    }
+
+    /// 64×48 グリッドでも同じ規則（奥の角から x, z ともさらに 1 単位外側）
+    @Test func referenceBarPositionScalesWithGrid() {
+        let cells = [CellValue](repeating: CellValue(hue: nil, saturation: 0, brightness: 0), count: 64 * 48)
+        let r = AnalysisResult(grid: GridLayout(imageWidth: 4000, imageHeight: 3000, longSideCells: 64), longSideCells: 64, cells: cells)
+        let g = BarGeometry.make(from: r, metric: .brightness)
+        #expect(g.referenceBar.x == -32.5 && g.referenceBar.z == -24.5)
+    }
+
     /// Float 配列を 1e-6 の許容で比較する
     private func expectClose(_ actual: [Float], _ expected: [Float]) {
         #expect(actual.count == expected.count)

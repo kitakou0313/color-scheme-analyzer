@@ -41,7 +41,7 @@
 <main>
 
 <h1>color-scheme-analyzer Blueprint</h1>
-<p class="meta">機能要件のマスターデータ。最終更新: 2026-09-09。決定の経緯は <code>CLAUDE.md</code> の「設計決定ログ」を参照。</p>
+<p class="meta">機能要件のマスターデータ。最終更新: 2026-09-11。決定の経緯は <code>CLAUDE.md</code> の「設計決定ログ」を参照。</p>
 
 <h2 id="about">0. この文書について</h2>
 <ul>
@@ -143,6 +143,7 @@
   <tr><td class="id">BAR-08</td><td>背景はダークグレー、ライティングは RealityKit 既定。</td><td>e2e</td><td class="st">✅</td></tr>
   <tr><td class="id">BAR-09</td><td>画面隅に凡例テキスト「高さ = 彩度 0–100%」（明度画面では「高さ = 明度 0–100%」）を表示する。</td><td>e2e</td><td class="st">✅</td></tr>
   <tr><td class="id">BAR-10</td><td>棒タップでの値表示、基準面・目盛り、カラーマップ切替は提供しない。</td><td>—</td><td class="st">⏸</td></tr>
+  <tr><td class="id">BAR-11</td><td>グリッド奥の角（行0・列0のセル）から対角線上にセル1個分離れた位置に、最大値(100%)のサンプルとなる基準棒を1本表示する。高さは値1.0と同じ（BAR-02 の式）。色は彩度画面が純赤 HSB(0°,100%,100%)、明度画面が白（HSB(なし,0%,100%)、既存のグレースケール規則どおり）。実データの棒と区別するため黒白の破線調ワイヤーフレーム枠を付け、凡例（BAR-09）に「破線枠の棒 = ○○100%の例」を追記する。`grid_width`/`grid_height` やセルデータには含めない描画専用の合成物で、常時表示（トグルなし）。初期カメラのフィット距離にはこの基準棒を含めた余白（extraMargin）を加える。</td><td>unit（ジオメトリ・カメラ余白） / e2e（表示確認）</td><td class="st">✅</td></tr>
 </table></div>
 
 <h3 id="hue">3.5 色相</h3>
@@ -252,6 +253,7 @@ analysis_version  TEXT    NOT NULL      -- 例 'hsb-dominant-v1'</code></pre>
   <tr><td>C</td><td>0.800</td><td>(204, 204, 204)</td></tr>
   <tr><td>D</td><td>1.000</td><td>(255, 255, 255)</td></tr>
 </table>
+<p>基準棒（BAR-11、N = 2 の例）: グリッド奥の角（セル A、中心 (−0.5, −0.5)）から対角線上にセル1個分（1単位）離れた (−1.5, −1.5) に置く。高さは maxHeight と同じ 1.000。色は彩度画面が (255, 0, 0)（純赤）、明度画面が (255, 255, 255)（白）。実データの棒と違い、黒白の破線調ワイヤーフレーム枠を付ける。</p>
 
 <h3>6.3 色相画面での表示例（同じフィクスチャ）</h3>
 <table>
@@ -319,7 +321,7 @@ analysis_version = "hsb-dominant-v1"</code></pre>
 </ul>
 
 <h2 id="progress">10. 進捗</h2>
-<p class="meta">最終更新: 2026-09-11。Core は <code>swift test</code> 93 件、E2E は 4 シナリオ（<code>ImportFlowUITests</code> ×2、<code>LibraryUITests</code> ×2）が全通過。個別要件の状態は第 3〜7 章の各表を参照。</p>
+<p class="meta">最終更新: 2026-09-11。Core は <code>swift test</code> 100 件、E2E は 5 シナリオ（<code>ImportFlowUITests</code> ×3、<code>LibraryUITests</code> ×2）が全通過。個別要件の状態は第 3〜7 章の各表を参照。</p>
 <table>
   <tr><th>領域</th><th>状態</th><th>備考</th></tr>
   <tr><td>プロジェクト雛形（XcodeGen / Core パッケージ / Makefile）</td><td>✅ 完了</td><td><code>make gen</code> / <code>test-core</code> / <code>test-ui</code> とも動作確認済み。</td></tr>
@@ -327,7 +329,7 @@ analysis_version = "hsb-dominant-v1"</code></pre>
   <tr><td>ImageDecoding（ANA-01, ANA-02, PER-03）</td><td>✅ 完了</td><td>EXIF 回転・4096px 上限・白合成・サムネイル生成を unit テストで検証。</td></tr>
   <tr><td>Persistence（PER-*）</td><td>🟨 ほぼ完了</td><td>PER-01〜06 は unit テスト済み。PER-07（解析方式が古いときのバナー表示）は実装のみでテスト未作成。</td></tr>
   <tr><td>ライブラリ / 取り込み（LIB-*, IMP-*, DET-*）</td><td>🟨 ほぼ完了</td><td>DET-* は全て e2e 済み。LIB-02（行タップでの選択）は未テスト。IMP-01（実ピッカー操作）・IMP-03（進捗/キャンセル UI）・IMP-06（デコード失敗アラート）は Core の unit テストのみで e2e 未実施、IMP-07（書き込み失敗時のクリーンアップ）は失敗パス自体のテストが未作成。</td></tr>
-  <tr><td>3D 棒グラフ（BAR-*）</td><td>✅ 完了</td><td>ジオメトリは unit、回転・俯瞰・リセット・ピンチ・床トグルは e2e とスクリーンショット目視で確認済み。</td></tr>
+  <tr><td>3D 棒グラフ（BAR-*）</td><td>✅ 完了</td><td>ジオメトリは unit、回転・俯瞰・リセット・ピンチ・床トグルは e2e とスクリーンショット目視で確認済み。BAR-11（基準棒）もジオメトリ・カメラ余白を unit テストで検証し、e2e スクショで表示を確認済み。</td></tr>
   <tr><td>色相（HUE-*）</td><td>🟨 ほぼ完了</td><td>選択・マーカー追従・色相環・数値表示は e2e 済み。HUE-02 の Apple Pencil 実機確認と、HUE-09 の 2 本指ピンチ/パンの e2e（色相画面側）が未実施。</td></tr>
   <tr><td>E2E 基盤（第 8 章）</td><td>✅ 完了</td><td>起動引数によるフィクスチャ取り込み、<code>xcresulttool</code> によるスクリーンショット抽出まで動作確認済み。</td></tr>
   <tr><td>非機能要件（NFR-*）</td><td>🟨 ほぼ完了</td><td>NFR-01/05/06 は確認済み。NFR-02 は縦横回転の e2e が未実施、NFR-03 は進捗 UI の e2e が未実施、NFR-04（性能目標）は実機未測定。</td></tr>

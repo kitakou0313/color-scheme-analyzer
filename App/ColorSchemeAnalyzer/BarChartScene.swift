@@ -9,7 +9,10 @@ enum BarChartScene {
     static let cameraName = "bars.camera"
     static let texturedFloorName = "bars.floor.textured"
     static let plainFloorName = "bars.floor.plain"
+    static let referenceBarName = "bars.referenceBar"
     static let fieldOfView: Float = 60
+    /// BAR-11: 基準棒をカメラのフィット計算に含めるための追加の半幅・半奥行き
+    static let referenceBarMargin: Double = 1
 
     /// 棒と床をまとめたルートエンティティ
     static func makeRoot(_ geometry: BarGeometry, floorImage: CGImage?) async -> Entity {
@@ -17,7 +20,31 @@ enum BarChartScene {
         root.addChild(await makeBars(geometry))
         root.addChild(await makeTexturedFloor(geometry, image: floorImage))
         root.addChild(makePlainFloor(geometry))
+        root.addChild(makeReferenceBar(geometry))
         return root
+    }
+
+    /// BAR-11: 最大値(100%)のサンプルとなる基準棒。塗り＋破線枠の2エンティティで構成する
+    private static func makeReferenceBar(_ geometry: BarGeometry) -> Entity {
+        let container = Entity()
+        container.name = referenceBarName
+        let halfWidth = geometry.barWidth / 2
+        container.addChild(makeReferenceBarFill(geometry.referenceBar, halfWidth: halfWidth))
+        container.addChild(ReferenceBarOutline.makeEntity(geometry.referenceBar, halfWidth: halfWidth))
+        return container
+    }
+
+    /// 基準棒の塗り部分。実データの棒と違いテクスチャは使わずフラットカラー
+    private static func makeReferenceBarFill(_ bar: BarGeometry.Bar, halfWidth: Float) -> ModelEntity {
+        let descriptor = BarChartMesh.singleBarDescriptor(bar, halfWidth: halfWidth)
+        guard let mesh = try? MeshResource.generate(from: [descriptor]) else { return ModelEntity() }
+        let material = SimpleMaterial(color: uiColor(bar.color), roughness: 1, isMetallic: false)
+        return ModelEntity(mesh: mesh, materials: [material])
+    }
+
+    /// RGB8 を RealityKit の材質色に変換する
+    private static func uiColor(_ rgb: RGB8) -> RealityKit.Material.Color {
+        .init(red: CGFloat(rgb.r) / 255, green: CGFloat(rgb.g) / 255, blue: CGFloat(rgb.b) / 255, alpha: 1)
     }
 
     /// BAR-05: 全棒を 1 メッシュにした ModelEntity。色はセルごとのテクセルから取る
@@ -89,7 +116,7 @@ enum BarChartScene {
         guard let entity = content.entities.first(where: { $0.name == cameraName }) else { return }
         let distance = OrbitCamera.fitDistance(
             columns: geometry.columns, rows: geometry.rows, maxHeight: geometry.maxHeight,
-            fovDegrees: Double(fieldOfView), aspectRatio: aspectRatio
+            fovDegrees: Double(fieldOfView), aspectRatio: aspectRatio, extraMargin: referenceBarMargin
         )
         let p = camera.position(fitDistance: distance)
         entity.look(at: .zero, from: [p.x, p.y, p.z], relativeTo: nil)

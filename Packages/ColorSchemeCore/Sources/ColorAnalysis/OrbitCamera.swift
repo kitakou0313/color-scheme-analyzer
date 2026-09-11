@@ -68,9 +68,10 @@ public struct OrbitCamera: Hashable, Sendable {
     }
 
     /// グリッド全体（幅・奥行き・最大高さ）を包む球が視野に収まる距離。
-    /// fovDegrees は縦方向の視野角、aspectRatio は表示領域の幅 / 高さ。縦長の画面では横方向の視野角の方が狭いので、狭い方で決める
-    public static func fitDistance(columns: Int, rows: Int, maxHeight: Float, fovDegrees: Double, aspectRatio: Double = 1) -> Double {
-        let halfWidth = Double(columns) / 2, halfDepth = Double(rows) / 2, height = Double(maxHeight)
+    /// fovDegrees は縦方向の視野角、aspectRatio は表示領域の幅 / 高さ。縦長の画面では横方向の視野角の方が狭いので、狭い方で決める。
+    /// extraMargin は BAR-11 の基準棒などグリッド外側の要素を含めるための追加の半幅・半奥行き
+    public static func fitDistance(columns: Int, rows: Int, maxHeight: Float, fovDegrees: Double, aspectRatio: Double = 1, extraMargin: Double = 0) -> Double {
+        let halfWidth = Double(columns) / 2 + extraMargin, halfDepth = Double(rows) / 2 + extraMargin, height = Double(maxHeight)
         let radius = (halfWidth * halfWidth + halfDepth * halfDepth + height * height).squareRoot()
         let halfVertical = fovDegrees / 2 * .pi / 180
         let halfHorizontal = atan(tan(halfVertical) * max(aspectRatio, 0.01))

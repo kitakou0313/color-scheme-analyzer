@@ -65,6 +65,12 @@ struct OrbitCameraTests {
         #expect(abs(d - 2 * 3.0.squareRoot()) < 1e-6)
     }
 
+    /// BAR-11: extraMargin を足すと半径がその分大きくなる（2×2・最大高さ1・視野60°で余白1なら半径3、距離6）
+    @Test func fitDistanceIncludesReferenceBarMargin() {
+        let d = OrbitCamera.fitDistance(columns: 2, rows: 2, maxHeight: 1, fovDegrees: 60, extraMargin: 1)
+        #expect(abs(d - 6) < 1e-6)
+    }
+
     /// 縦長（幅/高さ = 0.75）の画面では横方向の視野角 2·atan(tan 30° × 0.75) ≈ 46.8° で決まり、距離は √3 / sin(23.4°) ≈ 4.359
     @Test func fitDistanceUsesNarrowerAxisInPortrait() {
         let portrait = OrbitCamera.fitDistance(columns: 2, rows: 2, maxHeight: 1, fovDegrees: 60, aspectRatio: 0.75)

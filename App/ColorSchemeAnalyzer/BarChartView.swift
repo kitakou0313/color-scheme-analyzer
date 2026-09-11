@@ -18,7 +18,7 @@ struct BarChartView: View {
     private var geometry: BarGeometry {
         let values = metric == .saturation ? record.saturations : record.brightnesses
         let colors = BarGeometry.barColors(metric: metric, cellColors: record.colors, brightnesses: record.brightnesses)
-        return BarGeometry.make(grid: record.grid, values: values, colors: colors)
+        return BarGeometry.make(grid: record.grid, values: values, colors: colors, metric: metric)
     }
 
     var body: some View {
@@ -79,12 +79,18 @@ struct BarChartView: View {
             .onEnded { _ in zoomStart = nil }
     }
 
-    /// BAR-09: 凡例
+    /// BAR-09, BAR-11: 凡例（高さの意味 + 破線枠の基準棒の説明）
     private var legend: some View {
-        Text("高さ = \(metric == .saturation ? "彩度" : "明度") 0–100%")
+        Text(legendText)
             .font(.footnote).foregroundStyle(.white)
             .padding(8).background(.black.opacity(0.4), in: RoundedRectangle(cornerRadius: 6)).padding()
             .accessibilityIdentifier("bar.legend")
+    }
+
+    /// BAR-11: 画面ごとの凡例文言（彩度/明度で名詞を差し替える）
+    private var legendText: String {
+        let name = metric == .saturation ? "彩度" : "明度"
+        return "高さ = \(name) 0–100%\n破線枠の棒 = \(name)100%の例"
     }
 
     /// BAR-07: リセットと俯瞰
