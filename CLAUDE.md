@@ -19,7 +19,7 @@ iPadOS向けアプリ。画像を入力とし、その画像について以下�
 - `make test-core`: `Packages/ColorSchemeCore` の単体テスト（Swift Testing）。Xcode 本体なしで `swift test` が回る
 - `make test-ui`: iPad Pro 13-inch (M5) シミュレータで XCUITest を実行し、スクリーンショットを `TestResults/<日時>/screenshots/` に抽出する（git 管理外）
 - `python3 scripts/make-fixtures.py`: E2E 用フィクスチャ画像を `App/ColorSchemeAnalyzer/Fixtures/` に再生成する
-- E2E 用の起動引数（Debug ビルドのみ有効）: `-uiTestResetStore`（DB と画像を消してから起動）、`-uiTestFixture <name>`（sample-4x4 / hatching / gradient / starry-night をピッカーなしで取り込みフローに流す。starry-night はパブリックドメインの実写絵画。出典は `App/ColorSchemeAnalyzer/Fixtures/ATTRIBUTION.md`、取得は `scripts/fetch-painting-fixture.sh`）
+- E2E 用の起動引数（Debug ビルドのみ有効）: `-uiTestResetStore`（DB と画像を消してから起動）、`-uiTestFixture <name>`（sample-4x4 / hatching / gradient / starry-night をピッカーなしで取り込みフローに流す。starry-night はパブリックドメインの実写絵画。出典は `App/ColorSchemeAnalyzer/Fixtures/ATTRIBUTION.md`、取得は `scripts/fetch-painting-fixture.sh`。`corrupt-data` は実ファイルではなく非画像バイト列を流す疑似フィクスチャで、IMP-06 の「読み込めないアラート」検証に使う）、`-uiTestStaleVersion`（`-uiTestFixture` と併用し、新規取り込み直後だけ保存済みレコードの `analysis_version` を古い値に書き換える。PER-07 の更新案内バナー検証に使う。再解析では発動しない）、`-uiTestSlowAnalysis`（解析開始直後に 800ms の人工的な待ちを入れる。実機・実データでは解析が数フレームで終わり進捗表示を E2E で捕まえられないため、IMP-03・NFR-03 の検証にのみ使う）
 - 実機での実行は Xcode で Apple ID（Personal Team）を設定して署名する。自動化の対象外
 
 ## 開発方針

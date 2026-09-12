@@ -50,6 +50,73 @@ final class ImportFlowUITests: XCTestCase {
         snapshot("18-painting-hue")
     }
 
+    /// HUE-09: 色相画面でも 2 本指ピンチで画像がズームする（2 本指パンは XCUITest に多指ドラッグ API がなく手動確認）
+    func testHueScreenPinchZoom() throws {
+        launch(fixture: "sample-4x4")
+        importFixture()
+        segment.buttons["色相"].tap()
+        let image = app.images["hue.image"]
+        XCTAssertTrue(image.waitForExistence(timeout: 15))
+        let widthBeforePinch = image.frame.width
+        image.pinch(withScale: 2, velocity: 1)
+        XCTAssertTrue(image.frame.width > widthBeforePinch, "ピンチで画像が拡大される")
+        snapshot("19-hue-zoomed")
+    }
+
+    /// IMP-03, NFR-03: 解析中は進捗表示が見え、キャンセルすると何も保存されない
+    /// -uiTestSlowAnalysis で解析開始直後に待ちを入れ、進捗表示とキャンセル操作を確実に間に合わせる
+    func testCancelDuringAnalysisSavesNothing() throws {
+        app.launchArguments = ["-uiTestResetStore", "-uiTestFixture", "sample-4x4", "-uiTestSlowAnalysis"]
+        app.launch()
+        let start = app.buttons["import.resolution.start"]
+        XCTAssertTrue(start.waitForExistence(timeout: 15))
+        start.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["import.progress"].waitForExistence(timeout: 10), "進捗表示が見える")
+        snapshot("20-analyzing-progress")
+        app.buttons["import.progress.cancel"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["library.emptyState"].waitForExistence(timeout: 10), "キャンセルすると何も保存されない")
+        snapshot("21-cancelled-empty")
+    }
+
+    /// IMP-06: 非画像データを取り込むとアラートが出て、何も保存されない
+    func testCorruptFileShowsUnreadableAlertAndSavesNothing() throws {
+        launch(fixture: "corrupt-data")
+        let start = app.buttons["import.resolution.start"]
+        XCTAssertTrue(start.waitForExistence(timeout: 15))
+        start.tap()
+        let alert = app.alerts.firstMatch
+        XCTAssertTrue(alert.waitForExistence(timeout: 10), "読み込めないアラートが出る")
+        XCTAssertTrue(alert.staticTexts["この画像は読み込めません"].exists)
+        alert.buttons.firstMatch.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["library.emptyState"].waitForExistence(timeout: 10), "何も保存されない")
+        snapshot("22-corrupt-file-alert")
+    }
+
+    /// PER-07: 解析方式が古いレコードを開くと更新案内バナーが出て、再解析すると消える
+    func testStaleAnalysisVersionShowsBannerUntilReanalyzed() throws {
+        app.launchArguments = ["-uiTestResetStore", "-uiTestFixture", "sample-4x4", "-uiTestStaleVersion"]
+        app.launch()
+        importFixture()
+        XCTAssertTrue(app.staticTexts["detail.versionBanner"].waitForExistence(timeout: 10), "古い解析方式のバナーが出る")
+        snapshot("23-stale-version-banner")
+        app.buttons["detail.reanalyze"].tap()
+        importFixture()
+        XCTAssertFalse(app.staticTexts["detail.versionBanner"].exists, "再解析すると消える")
+        snapshot("24-reanalyzed-banner-gone")
+    }
+
+    /// NFR-02: 縦横回転してもセグメントと画面が保たれる
+    func testRotatesBetweenPortraitAndLandscape() throws {
+        launch(fixture: "sample-4x4")
+        importFixture()
+        XCUIDevice.shared.orientation = .landscapeLeft
+        XCTAssertTrue(segment.waitForExistence(timeout: 10), "横向きでも表示できる")
+        snapshot("25-landscape")
+        XCUIDevice.shared.orientation = .portrait
+        XCTAssertTrue(segment.waitForExistence(timeout: 10), "縦向きに戻せる")
+        snapshot("26-portrait")
+    }
+
     /// ストアを空にし、指定フィクスチャで取り込みフローを開始した状態でアプリを起動する
     private func launch(fixture: String) {
         app.launchArguments = ["-uiTestResetStore", "-uiTestFixture", fixture]

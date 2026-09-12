@@ -128,6 +128,13 @@ public final class AnalysisStore: Sendable {
         }
     }
 
+    /// テスト用フック: analysis_version だけを書き換える（PER-07 の E2E 検証に使う）
+    public func overrideAnalysisVersion(id: UUID, to version: String) throws {
+        try queue.write { db in
+            _ = try AnalysisStore.byID(id).updateAll(db, [Column("analysis_version").set(to: version)])
+        }
+    }
+
     /// 画像コピーの絶対 URL
     public func imageURL(for record: AnalysisRecord) -> URL {
         imagesDirectory.appendingPathComponent((record.imagePath as NSString).lastPathComponent)

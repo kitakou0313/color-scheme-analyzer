@@ -42,6 +42,23 @@ final class LibraryUITests: XCTestCase {
         snapshot("15-deleted")
     }
 
+    /// LIB-02: 再起動直後は未選択に戻り、一覧の行をタップすると詳細が開く
+    func testTappingRowOpensDetail() throws {
+        app.launchArguments = ["-uiTestResetStore", "-uiTestFixture", "hatching"]
+        app.launch()
+        importWithResolution("32")
+        XCTAssertTrue(app.descendants(matching: .any)["library.row"].firstMatch.waitForExistence(timeout: 15))
+        app.terminate()
+        app.launchArguments = []
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any)["detail.emptyState"].waitForExistence(timeout: 15), "再起動直後は未選択")
+        let row = app.descendants(matching: .any)["library.row"].firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        row.tap()
+        XCTAssertTrue(app.navigationBars["hatching"].waitForExistence(timeout: 10), "行タップで詳細が開く")
+        snapshot("19-row-tap-opens-detail")
+    }
+
     /// 解像度を選んで開始し、詳細が開くまで待つ
     private func importWithResolution(_ cells: String) {
         let start = app.buttons["import.resolution.start"]

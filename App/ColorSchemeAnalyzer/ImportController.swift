@@ -28,10 +28,13 @@ final class ImportController {
     var pickerRequest: ImportSource?
     private var task: Task<Void, Never>?
     private let defaults: UserDefaults
+    /// IMP-03, NFR-03 の E2E 検証用: 解析開始直後に入れる人工的な待ち（-uiTestSlowAnalysis）
+    private let testingAnalysisDelay: Duration?
 
     /// 前回の解像度を読み込む
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard, testingAnalysisDelay: Duration? = nil) {
         self.defaults = defaults
+        self.testingAnalysisDelay = testingAnalysisDelay
         longSideCells = ResolutionPreference.resolve(stored: defaults.object(forKey: ResolutionPreference.userDefaultsKey) as? Int)
     }
 
@@ -84,6 +87,7 @@ final class ImportController {
     /// 仕事を実行し、結果か失敗文言を反映してアイドルに戻る
     private func run(_ job: Job, cells: Int, store: AnalysisStore, onSaved: (AnalysisRecord) -> Void) async {
         do {
+            if let testingAnalysisDelay { try await Task.sleep(for: testingAnalysisDelay) }
             onSaved(try await perform(job, cells: cells, store: store))
         } catch {
             errorMessage = ImportFailure.message(for: error)

@@ -114,6 +114,16 @@ struct AnalysisStoreTests {
         #expect(updated.name == record.name && updated.imagePath == record.imagePath)
     }
 
+    /// PER-07: テスト用フックで analysis_version だけを書き換えられる。他の列は変わらない
+    @Test func overrideAnalysisVersionChangesOnlyThatColumn() throws {
+        let (store, _) = try makeStore()
+        let record = try store.save(newAnalysis())
+        try store.overrideAnalysisVersion(id: record.id, to: "hsb-dominant-v0")
+        let updated = try #require(try store.fetch(id: record.id))
+        #expect(updated.analysisVersion == "hsb-dominant-v0")
+        #expect(updated.name == record.name && updated.gridWidth == record.gridWidth)
+    }
+
     /// 画像ファイルの絶対 URL を組み立てられる
     @Test func imageURLPointsIntoImagesDirectory() throws {
         let (store, dir) = try makeStore()

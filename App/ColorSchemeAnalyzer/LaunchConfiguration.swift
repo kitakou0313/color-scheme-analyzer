@@ -6,6 +6,10 @@ struct LaunchConfiguration: Equatable {
     var fixtureName: String?
     /// `-uiTestResetStore`: DB と画像ディレクトリを空にしてから起動する
     var resetStore = false
+    /// `-uiTestStaleVersion`: フィクスチャ保存直後に analysis_version を古い値へ書き換える（PER-07 検証用）
+    var staleVersion = false
+    /// `-uiTestSlowAnalysis`: 解析開始直後に待ちを入れ、進捗表示とキャンセルを確実に E2E で捕まえられるようにする（IMP-03, NFR-03 検証用）
+    var slowAnalysis = false
 
     /// このプロセスの起動引数から得た設定
     static let current = parse(CommandLine.arguments)
@@ -18,6 +22,8 @@ struct LaunchConfiguration: Equatable {
             config.fixtureName = arguments[index + 1]
         }
         config.resetStore = arguments.contains("-uiTestResetStore")
+        config.staleVersion = arguments.contains("-uiTestStaleVersion")
+        config.slowAnalysis = arguments.contains("-uiTestSlowAnalysis")
         return config
         #else
         return LaunchConfiguration()
